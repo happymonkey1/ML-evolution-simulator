@@ -7,7 +7,8 @@ public class Node
     {
         INPUT,
         HIDDEN,
-        OUTPUT
+        OUTPUT,
+        CONSTANT
     }
 
     public NodeType type;
@@ -21,7 +22,10 @@ public class Node
     private double _derivative;
     public double state;
     public double old;
+
     public double mask;
+    public double previousDeltaBias;
+    public double totalDeltaBias;
 
     public Connections connections;
 
@@ -50,12 +54,16 @@ public class Node
         bias = (type == NodeType.INPUT) ? 0 : new Random().NextDouble() * 0.2 - 0.1;
         activation = state = old = 0.0;
 
-        mask = 1.0;
+        
         connections = new Connections(this, this);
 
-        responsibilityError = 0;
-        projectedError = 0;
-        gatedError = 0;
+        responsibilityError = 0.0;
+        projectedError = 0.0;
+        gatedError = 0.0;
+
+        mask = 1.0;
+        previousDeltaBias = 0.0;
+        totalDeltaBias = 0.0;
     }
 
     public double Activate(double? input)
@@ -118,8 +126,115 @@ public class Node
                 }
             }
         }
+
+        return activation;
     }
 
+
+    public void Propogate(bool update, double target, double? rate = null, double? momentum = null)
+    {
+        rate = (rate != null) ? rate : 0.3;
+        momentum = (momentum != null) ? momentum : (double)0.3;
+
+        double error = 0.0;
+        if (type == NodeType.OUTPUT)
+            responsibilityError = projectedError = target - activation;
+        else
+        {
+            for (int i=0; i < connections.Out.Count; i++)
+            {
+                Connection c = connections.Out[i];
+                Node n = c.To;
+
+                error += n.responsibilityError * c.weight * c.gain;
+            }
+
+
+            projectedError = _derivative * error;
+            error = 0.0;
+
+            for (int i =0; i < connections.Gated.Count; i++)
+            {
+                Connection c = connections.Gated[i];
+                Node n = c.To;
+                double influence = (n.connections.self.Gater == this) ? n.old : 0.0;
+
+                influence += c.weight * c.From.activation;
+                error = n.responsibilityError * influence;
+            }
+
+
+            gatedError = _derivative * error;
+            responsibilityError = projectedError + gatedError;
+        }
+
+        if (type == NodeType.CONSTANT) return;
+
+        for (int i=0; i < connections.In.Count; i++)
+        {
+            Connection c = connections.In[i];
+            double gradient = projectedError * c.eligibility;
+
+            for (int j=0; j < c.crossTrace.Nodes.Count; j++)
+            {
+                Node node = c.crossTrace.Nodes[j];
+                double value = c.crossTrace.Values[j];
+                gradient += node.responsibilityError * value;
+            }
+
+            double deltaWeight = (double)rate * (double)gradient * mask;
+            c.totalDeltaWeight += deltaWeight;
+
+            if (update)
+            {
+                c.totalDeltaWeight += (double)momentum * c.previousDeltaWeight;
+                c.weight += c.totalDeltaWeight;
+                c.previousDeltaWeight = c.totalDeltaWeight;
+                c.totalDeltaWeight = 0.0;
+            }
+        }
+
+        double deltaBias = (double)rate * responsibilityError;
+        totalDeltaBias += deltaBias;
+        if (update)
+        {
+            totalDeltaBias = (double)momentum * previousDeltaBias;
+            bias += totalDeltaBias;
+            previousDeltaBias = totalDeltaBias;
+            totalDeltaBias = 0; 
+        }
+    }
+
+    public void Connect<T>(T t, double? weight = null)
+    {
+        List<Connection> connections = new List<Connection>();
+        var target = (T is Node) ? t as Node : t as Genome;
+        if (target.GetType() is typeof(Node))
+        {
+            if (target == this)
+            {
+                if (this.connections.self.weight == 0.0)
+                    this.connections.self.weight = (weight != null) ? (double)weight : 0.0;
+
+                connections.Add(this.connections.self);
+            }
+            else if (IsProjectingTo(target))
+                throw new System.ArgumentException("This connection already exists");
+            else
+            {
+                Connection c = new Connection(this, target, (double)weight);
+                target.connections.In.Add(c);
+                this.connections.Out.Add(c);
+
+                connections.Add(c);
+            }
+        }
+    }
+
+    public bool IsProjectingTo(Node target)
+    {
+        return false;
+    }
 }
 
 public struct Connections

@@ -6,13 +6,13 @@ public class Globals
 {
 
     public const int MAX_ITERATIONS = 100;
-    public const bool CLEAR = false;
+    public const bool CLEAR = true;
 
     public const int BACK_CONNECTIONS = 0;
     public const int SELF_CONNECTIONS = 0;
     public const int GATES = 0;
 
-    
+    public const float MUTATION_CHANCE = 0.3f;
 }
 
 public class Mutations

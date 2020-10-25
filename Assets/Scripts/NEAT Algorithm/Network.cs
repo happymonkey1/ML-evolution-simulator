@@ -22,7 +22,7 @@ public class Network
 
     double score = 0.0;
 
-    public Network(int i, int o, bool biased = false)
+    public Network(int i, int o, bool biased = false, bool fullConnect = true)
     {
         this.biased = biased;
         input = i + ((biased) ? 1 : 0);
@@ -44,17 +44,24 @@ public class Network
             nodes[j].index = j;
         }
 
+
+        if (fullConnect)
+            FullConnect();
+
+    }
+
+    public void FullConnect()
+    {
         //connect input and output directly
-        for (int j=0; j < input; j++)
+        for (int j = 0; j < input; j++)
         {
-            for (int k= input; k < output + input; k++)
+            for (int k = input; k < output + input; k++)
             {
                 // https://stats.stackexchange.com/a/248040/147931
                 double weight = UnityEngine.Random.value * input * Math.Sqrt(2 / input);
-                Connect(nodes[i], nodes[j], weight);
+                Connect(nodes[j], nodes[k], weight);
             }
         }
-
     }
 
     public List<double> Activate(List<double> inputs, bool training)
@@ -83,11 +90,12 @@ public class Network
     {
         List<double> output = new List<double>();
 
+
         for (int i = 0; i < nodes.Count; i++)
         {
             
             if (nodes[i].type == Node.NodeType.INPUT)
-                nodes[i].NoTraceActivate(inputs[i]);
+                nodes[i].NoTraceActivate(inputs[i - ((biased) ? 1 : 0)]);
             else if (nodes[i].type == Node.NodeType.OUTPUT)
             {
                 double activation = nodes[i].NoTraceActivate();
@@ -247,6 +255,7 @@ public class Network
         switch (method)
         {
             case MUTATION_TYPE.ADD_NODE:
+                if (connections.Count == 0) break;
                 Connection c = connections[new System.Random().Next(connections.Count)];
                 Node gater = c.Gater;
                 Disconnect(c.From, c.To);
@@ -286,6 +295,8 @@ public class Network
                 break;
             case MUTATION_TYPE.ADD_CONN:
                 List<(Node, Node)> available = new List<(Node, Node)>();
+
+                Debug.Log("THIS BITCH MUTATED A CONNECTION");
                 for (int i=0; i < nodes.Count - output; i++)
                 {
                     Node node1 = nodes[i];
@@ -326,6 +337,7 @@ public class Network
                 Disconnect(randomConn.From, randomConn.To);
                 break;
             case MUTATION_TYPE.MOD_WEIGHT:
+                if (connections.Count + selfConnections.Count == 0) break;
                 List<Connection> allConnections = new List<Connection>();
                 allConnections.AddRange(connections);
                 allConnections.AddRange(selfConnections);
@@ -605,50 +617,69 @@ public class Network
         }
 
 
-        List<ConnectionData> connections = new List<ConnectionData>();
-        List<int> keys1 = new List<int>(newConnections1.Keys);
-        List<int> keys2 = new List<int>(newConnections1.Keys);
 
-        for (int i = keys1.Count; i >= 0; i--)
+        if (this.connections.Count > 0)
         {
-            ConnectionData conn;
-            if (newConnections2.TryGetValue(keys1[i], out conn))
-            {
-                conn = (UnityEngine.Random.value >= 0.5) ? newConnections1[keys1[i]] : newConnections2[keys1[i]];
-                connections.Add(conn);
+            List<ConnectionData> connections = new List<ConnectionData>();
+            List<int> keys1 = new List<int>(newConnections1.Keys);
+            List<int> keys2 = new List<int>(newConnections1.Keys);
 
-                newConnections2.Remove(keys1[i]);
-            }
-            else if (score1 >= score2 || equal)
-                connections.Add(newConnections1[keys1[i]]);
-        }
-
-        if (score2 >= score1 || equal)
-        {
-            for (int i =0; i < keys2.Count; i++)
+            for (int i = keys1.Count - 1; i >= 0; i--)
             {
                 ConnectionData conn;
-                if (newConnections2.TryGetValue(keys2[i], out conn))
-                    connections.Add(newConnections2[keys2[i]]);
+                if (newConnections2.TryGetValue(keys1[i], out conn))
+                {
+                    conn = (UnityEngine.Random.value >= 0.5) ? newConnections1[keys1[i]] : newConnections2[keys1[i]];
+                    connections.Add(conn);
+
+                    newConnections2.Remove(keys1[i]);
+                }
+                else if (score1 >= score2 || equal)
+                    connections.Add(newConnections1[keys1[i]]);
+            }
+
+            if (score2 >= score1 || equal)
+            {
+                for (int i = 0; i < keys2.Count; i++)
+                {
+                    ConnectionData conn;
+                    if (newConnections2.TryGetValue(keys2[i], out conn))
+                        connections.Add(newConnections2[keys2[i]]);
+                }
+            }
+
+            for (int i = 0; i < connections.Count; i++)
+            {
+                ConnectionData cData = connections[i];
+                if (cData.to < size && cData.from < size)
+                {
+                    Node from = offspring.nodes[cData.from];
+                    Node to = offspring.nodes[cData.to];
+                    Connection conn = offspring.Connect(from, to)[0];
+
+                    conn.weight = cData.weight;
+
+                    if (cData.gater != -1 && cData.gater < size)
+                    {
+                        offspring.Gate(offspring.nodes[cData.gater], conn);
+                    }
+                }
             }
         }
 
-        for (int i=0; i < connections.Count; i++)
+        if (UnityEngine.Random.value <= Globals.MUTATION_CHANCE)
         {
-            ConnectionData cData = connections[i];
-            if (cData.to < size && cData.from < size)
-            {
-                Node from = offspring.nodes[cData.from];
-                Node to = offspring.nodes[cData.to];
-                Connection conn = offspring.Connect(from, to)[0];
+            float rand = UnityEngine.Random.value;
+            if (rand < .8)
+                offspring.Mutate(MUTATION_TYPE.MOD_WEIGHT);
 
-                conn.weight = cData.weight;
+            rand = UnityEngine.Random.value;
+            if (rand < .05)
+                offspring.Mutate(MUTATION_TYPE.ADD_CONN);
 
-                if(cData.gater != -1 && cData.gater < size)
-                {
-                    offspring.Gate(offspring.nodes[cData.gater], conn);
-                }
-            }
+            rand = UnityEngine.Random.value;
+            if (rand < .01)
+                offspring.Mutate(MUTATION_TYPE.ADD_NODE);
         }
 
         return offspring;

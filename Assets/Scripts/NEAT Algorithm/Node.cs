@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System;
+
+using UnityEngine;
 public class Node
 {
     public enum NodeType
@@ -58,6 +60,7 @@ public class Node
         responsibilityError = 0.0;
         projectedError = 0.0;
         gatedError = 0.0;
+        state = 0.0;
 
         squash = ACTIVATION.SIGMOID;
         mask = 1.0;
@@ -147,6 +150,7 @@ public class Node
         {
             Connection c = connections.In[i];
             state += c.From.activation * c.weight * c.gain;
+            Debug.Log("SHOUL DNOT SEE THIS BITCH");
         }
 
         activation = squash(state);
@@ -385,7 +389,7 @@ public class Connection
 
         crossTrace.Nodes = new List<Node>();
         crossTrace.Values = new List<double>();
-        weight = (w == 0.0) ? new Random().NextDouble() * 0.2 - 0.1 : w;
+        weight = (w == 0.0) ? new System.Random().NextDouble() * 0.2 - 0.1 : w;
         gain = 1;
 
         previousDeltaWeight = 0.0;

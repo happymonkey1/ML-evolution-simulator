@@ -154,14 +154,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 99d5ffd3d96bce3438fe7ba4d3cbc9cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  worldWidth: 60
-  worldHeight: 60
+  worldWidth: 10
+  worldHeight: 10
   worldBounds:
     serializedVersion: 2
     x: 0
     y: 0
     width: 0
     height: 0
+  agents: []
+  foods: []
   maxFood: 100
   maxAgents: 10
   agentPrefab: {fileID: 528040631333100056, guid: 4b6e0ac782be7f6438b0297a14e43d92,
@@ -412,6 +414,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 528040631333100063, guid: 4b6e0ac782be7f6438b0297a14e43d92,
+        type: 3}
+      propertyPath: neuronInput
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 528040633156736302, guid: 4b6e0ac782be7f6438b0297a14e43d92,
         type: 3}

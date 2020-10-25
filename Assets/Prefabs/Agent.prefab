@@ -45,9 +45,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08524364eccab924d832a3c0a4c1fb31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  neuronInput: 2
+  neuronOutput: 2
   baseEnergy: 100
   baseHealth: 100
-  baseSize: 1
+  baseSize: 0.1
   baseSpeed: 1.4
   maxEnergy: 0
   maxHealth: 0
@@ -55,6 +57,7 @@ MonoBehaviour:
   currentHealth: 0
   currentEnergy: 0
   currentSpeed: 0
+  direction: 0
   size: 0
 --- !u!58 &528040631333100061
 CircleCollider2D:
@@ -180,4 +183,4 @@ MonoBehaviour:
   - {x: -1.125, y: 1.125, z: 0}
   m_ShapePathHash: 0
   m_Mesh: {fileID: 0}
-  m_InstanceId: 18958
+  m_InstanceId: -1244

@@ -5,6 +5,11 @@ using UnityEngine;
 public class Agent : MonoBehaviour
 {
 
+    public int neuronInput;
+    public int neuronOutput;
+    private List<double> _brainVision;
+    private List<double> _brainDecisions;
+
     public float baseEnergy;
     public float baseHealth;
     public float baseSize;
@@ -19,11 +24,13 @@ public class Agent : MonoBehaviour
     public float currentHealth;
     public float currentEnergy;
     public float currentSpeed;
+    public float direction;
     public float size;
 
     private Vector2 _velocity;
 
 
+    Network Brain { get; set; }
     public int ID { get; set; }
 
     
@@ -42,14 +49,14 @@ public class Agent : MonoBehaviour
     {
         baseEnergy += (Random.Range(-50f, 50f));
         baseSize += NativeMethods.GetRandomFloat(0f, 1f);
-        baseSize = Mathf.Clamp(baseSize, 0.1f, 100f);
+        baseSize = Mathf.Clamp(baseSize, 0.25f, 100f);
         //baseHealth = 100;
         baseSpeed = 1.4f;
 
         size = baseSize;
         maxHealth = baseHealth + (100f * size);
         maxEnergy = baseEnergy + (50f * NativeMethods.PowOneOverE(size));
-        maxSpeed = Mathf.Clamp(baseSpeed + (1 - size)*NativeMethods.InverseE, GameManager.MIN_SPEED, GameManager.MAX_SPEED);
+        maxSpeed = Mathf.Clamp(baseSpeed, GameManager.MIN_SPEED, GameManager.MAX_SPEED);
 
         currentEnergy = maxEnergy;
         currentHealth = maxHealth;
@@ -63,44 +70,102 @@ public class Agent : MonoBehaviour
         int x = (int)(NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.x, GameManager.instance.worldBounds.width / 2));
         int y = (int)(NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.y, GameManager.instance.worldBounds.height / 2));
         _transform.position = new Vector3(x, y, 0);
+
+
+
+        Brain = Preset.Random(neuronInput, new System.Random().Next(0, 3), neuronOutput);
+        
     }
 
-    // Update is called once per frame
+    void FindClosestFood()
+    {
+
+    }
+
     void Update()
     {
+        Debug.LogWarning("START");
+        See();
+
         Think();
 
         Move();
 
-        UseEnergy();
+        Metabolism();
+        Debug.LogWarning("STOP");
     }
+
+
+    void See()
+    {
+        _brainVision = new List<double>();
+
+        double hunger = (currentEnergy / maxEnergy);
+        hunger = (hunger < 0) ? 0 : hunger;
+        _brainVision.Add(currentEnergy);
+
+        double speed = Mathf.Abs(currentSpeed / maxSpeed);
+        speed = (speed > 1) ? 1.0 : speed;
+        _brainVision.Add(currentSpeed);
+        
+        Debug.Log($"inputs: {string.Join(" ", _brainVision)}");
+    
+    }
+
+
+    // Update is called once per frame
+    
 
     void Think()
     {
-        if (Random.Range(0, 100) > 80f)
+        double max = 0;
+        int maxIndex = 0;
+        _brainDecisions = Brain.NoTraceActivate(_brainVision);
+
+
+
+        Debug.Log($"outputs: {string.Join(" ", _brainDecisions)}");
+
+        for (int i=0; i < _brainDecisions.Count; i++)
         {
-            if (currentEnergy > 0)
+            if (_brainDecisions[i] > max)
             {
-                float dir = Random.Range(0, 2 * Mathf.PI);
-                _velocity = (new Vector2(Mathf.Cos(dir), Mathf.Sin(dir)) * (currentSpeed * Time.deltaTime));
+                max = _brainDecisions[i];
+                maxIndex = i;
             }
         }
+
+
+        switch (maxIndex)
+        {
+            case 0: //SPEED
+                currentSpeed = maxSpeed * (float)(max);
+                break;
+            case 1: //DIRECTION
+                direction = (Mathf.PI * 2) * (float)(max);
+                break;
+        }
+
     }
 
     void Move()
     {
+        _velocity = new Vector2(Mathf.Cos(direction), Mathf.Sin(direction)) * (currentSpeed * Time.deltaTime);
         _transform.position = _transform.position + new Vector3(_velocity.x, _velocity.y, 0);
     }
 
 
-    void UseEnergy()
+    void Metabolism()
     {
-        float energyCostToMove = (NativeMethods.PowOneOverE(Mathf.Abs(_velocity.magnitude) * size));
-        float energyCostToMaintainSize = size * NativeMethods.InverseE;
+        float moveCost = (NativeMethods.PowOneOverE(Mathf.Abs(_velocity.magnitude)));
+        float sizeCost = 2 * size * NativeMethods.InverseE;
 
 
-        float totalEnergyCost = energyCostToMove + energyCostToMaintainSize;
+        float totalEnergyCost = moveCost + sizeCost;
         currentEnergy -= totalEnergyCost * Time.deltaTime;
+
+        if (currentEnergy < 0)
+            currentHealth -= NativeMethods.InverseE * maxHealth * Time.deltaTime;
     }
     
 

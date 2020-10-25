@@ -1,11 +1,21 @@
 ﻿using System;
+using System.Collections.Generic;
 
 // https://en.wikipedia.org/wiki/Activation_function
 // https://stats.stackexchange.com/questions/115258/comprehensive-list-of-activation-functions-in-neural-networks-with-pros-cons
-public class Functions
+public class ACTIVATION
 {
     public static double LOGISTIC(double x, bool derivate = false) {
         double y = 1.0 / (1.0 + Math.Pow(Math.E, x));
+        if (!derivate)
+            return y;
+        else
+            return y * (1 - y);
+    }
+
+    public static double SIGMOID(double x, bool derivate = false)
+    {
+        double y = 1.0 / (1.0 + Math.Pow(Math.E, -4.9 * x));
         if (!derivate)
             return y;
         else
@@ -86,4 +96,24 @@ public class Functions
         if (derivate) { return x > 0 ? scale : (fx + alpha) * scale; }
         return fx * scale;
     }
+
+    
+}
+
+
+public class COST_FUNCTIONS
+{
+    public static double MEAN_SQUARED_ERROR(List<double> target, List<double> output)
+    {
+        double error = 0.0;
+        for (int i = 0; i < output.Count; i++)
+            error += Math.Pow(target[i] - output[i], 2);
+
+        return error / output.Count;
+    }
+}
+
+public class RATE_FUNCTIONS
+{
+    public static double FIXED(double baseRate, int iteration) { return baseRate; }
 }

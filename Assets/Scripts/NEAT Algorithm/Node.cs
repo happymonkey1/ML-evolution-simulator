@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System;
+
+using UnityEngine;
 public class Node
 {
     public enum NodeType
@@ -12,7 +14,7 @@ public class Node
     }
 
     public NodeType type;
-    public int activationIndex;
+    public int index;
     public double bias;
 
     public delegate double Squash(double x, bool derivate = false);
@@ -33,25 +35,23 @@ public class Node
     public double projectedError;
     public double gatedError;
 
-    public Node(NodeType t, int i)
+    public Node(NodeType t)
     {
         type = t;
-        activationIndex = i;
 
         Init();
     }
 
-    public Node(int i)
+    public Node()
     {
         type = NodeType.HIDDEN;
-        activationIndex = i;
 
         Init();
     }
 
     public void Init()
     {
-        bias = (type == NodeType.INPUT) ? 0 : new Random().NextDouble() * 0.2 - 0.1;
+        bias = (type == NodeType.INPUT) ? 0 : 0;//new Random().NextDouble() * 0.2 - 0.1;
         activation = state = old = 0.0;
 
         
@@ -60,19 +60,25 @@ public class Node
         responsibilityError = 0.0;
         projectedError = 0.0;
         gatedError = 0.0;
+        state = 0.0;
 
+        squash = ACTIVATION.SIGMOID;
         mask = 1.0;
         previousDeltaBias = 0.0;
         totalDeltaBias = 0.0;
     }
 
-    public double Activate(double? input)
+    public double Activate(double? input = null)
     {
+        if (type == Node.NodeType.CONSTANT) return 1.0;
+
         if (input != null)
         {
             activation = (double)input;
             return activation;
         }
+
+        
 
         old = state;
         state = connections.self.gain * connections.self.weight * state + bias;
@@ -130,6 +136,30 @@ public class Node
         return activation;
     }
 
+    public double NoTraceActivate(double? input = null)
+    {
+        if (input != null)
+        {
+            activation = (double)input;
+            return activation;
+        }
+
+        state = connections.self.gain * connections.self.weight * state + bias;
+
+        for(int i = 0; i < connections.In.Count; i++)
+        {
+            Connection c = connections.In[i];
+            state += c.From.activation * c.weight * c.gain;
+            Debug.Log("SHOUL DNOT SEE THIS BITCH");
+        }
+
+        activation = squash(state);
+
+        for (int i = 0; i < connections.Gated.Count; i++)
+            connections.Gated[i].gain = activation;
+
+        return activation;
+    }
 
     public void Propogate(bool update, double target, double? rate = null, double? momentum = null)
     {
@@ -205,60 +235,138 @@ public class Node
         }
     }
 
-    public void Connect<T>(T t, double? weight = null)
+    public List<Connection> Connect(Node target, double? weight = null)
     {
         List<Connection> connections = new List<Connection>();
-        var target = (T is Node) ? t as Node : t as Genome;
-        if (target.GetType() is typeof(Node))
+        if (target == this)
         {
-            if (target == this)
-            {
-                if (this.connections.self.weight == 0.0)
-                    this.connections.self.weight = (weight != null) ? (double)weight : 0.0;
+            if (this.connections.self.weight == 0.0)
+                this.connections.self.weight = (weight != null) ? (double)weight : 1.0;
 
-                connections.Add(this.connections.self);
-            }
-            else if (IsProjectingTo(target))
-                throw new System.ArgumentException("This connection already exists");
-            else
-            {
-                Connection c = new Connection(this, target, (double)weight);
-                target.connections.In.Add(c);
-                this.connections.Out.Add(c);
+            connections.Add(this.connections.self);
+        }
+        else if (IsProjectingTo(target))
+            throw new System.ArgumentException("This connection already exists");
+        else
+        {
+            Connection c = new Connection(this, target, (double)weight);
+            target.connections.In.Add(c);
+            this.connections.Out.Add(c);
 
-                connections.Add(c);
+            connections.Add(c);
+        }
+        return connections;
+    }
+
+    public List<Connection> Connect(NodeGroup target, double? weight = null)
+    {
+        List<Connection> connections = new List<Connection>();
+        for (var i = 0; i < target.nodes.Count; i++)
+        {
+            double w = (weight != null) ? (double)weight : 1.0;
+            Connection c = new Connection(this, target.nodes[i], w);
+            target.nodes[i].connections.In.Add(c);
+            this.connections.Out.Add(c);
+            target.connections.In.Add(c);
+
+            connections.Add(c);
+        }
+
+        return connections;
+    }
+
+    public void Disconnect(Node node, bool twoSided)
+    {
+        if (this == node)
+        {
+            connections.self.weight = 0.0;
+            return;
+        }
+
+        for (int i=0; i < this.connections.Out.Count; i++)
+        {
+            Connection c = this.connections.Out[i];
+            if (c.To == node)
+            {
+                connections.Out.RemoveAt(i);
+                int j = c.To.connections.In.IndexOf(c);
+                c.To.connections.In.RemoveAt(j);
+                if (c.Gater != null)
+                    c.Gater.UnGate(c);
+                break;
             }
         }
+
+        if (twoSided)
+            node.Disconnect(this, false);
+    }
+
+    public void Gate(params Connection[] conns)
+    {
+        for (int i=0; i < conns.Length; i++)
+        {
+            Connection c = conns[i];
+
+            connections.Gated.Add(c);
+            c.Gater = this;
+        }
+    }
+
+    public void UnGate(params Connection[] conns)
+    {
+        for (int i = 0; i < conns.Length; i++)
+        {
+            Connection c = conns[i];
+
+            int index = connections.Gated.IndexOf(c);
+            connections.Gated.RemoveAt(index);
+            c.Gater = null;
+            c.gain = 1;
+        }
+    }
+
+    public void Clear()
+    {
+        for (int i=0; i < connections.In.Count; i++)
+        {
+            Connection c = connections.In[i];
+
+            c.eligibility = 0.0;
+            c.crossTrace.Nodes = new List<Node>();
+            c.crossTrace.Values = new List<double>();
+        }
+
+        for (int i=0; i < connections.Gated.Count; i++)
+        {
+            Connection c = connections.Gated[i];
+            c.gain = 0.0;
+        }
+
+        responsibilityError = projectedError = gatedError = 0.0;
+        old = state = activation = 0;
+    }
+
+    public void Mutate(MUTATION_TYPE method)
+    {
+        throw new MissingMethodException();
     }
 
     public bool IsProjectingTo(Node target)
     {
+        if (target == this && connections.self.weight != 0.0) return true;
+
+        for (int i=0; i < connections.In.Count; i++)
+        {
+            Connection c = connections.In[i];
+            if (c.From == target)
+                return true;
+        }
+
         return false;
     }
 }
 
-public struct Connections
-{
-    public List<Connection> In { get; set; }
-    public List<Connection> Out { get; set; }
-    public List<Connection> Gated { get; set; }
-    public Connection self;
-    public Connections(Node f, Node t)
-    {
-        In = new List<Connection>();
-        Out = new List<Connection>();
-        Gated = new List<Connection>();
-        self = new Connection(f, t, 0);
-    }
 
-}
-
-public struct CrossTrace
-{
-    public List<Node> Nodes { get; set; }
-    public List<double> Values { get; set; }
-
-}
 
 public class Connection
 {
@@ -281,11 +389,31 @@ public class Connection
 
         crossTrace.Nodes = new List<Node>();
         crossTrace.Values = new List<double>();
-        weight = (w == 0.0) ? new Random().NextDouble() * 0.2 - 0.1 : w;
+        weight = (w == 0.0) ? new System.Random().NextDouble() * 0.2 - 0.1 : w;
         gain = 1;
 
         previousDeltaWeight = 0.0;
         totalDeltaWeight = 0.0;
         eligibility = 0.0;
+    }
+
+    //https://en.wikipedia.org/wiki/Pairing_function (Cantor pairing function)
+    public static int InnovationID(int a, int b) { return 1 / 2 * (a + b) * (a + b + 1) + b; }
+}
+
+
+public struct ConnectionData
+{
+    public double weight;
+    public int from;
+    public int to;
+    public int gater;
+
+    public ConnectionData(double w, int f, int t, int g)
+    {
+        weight = w;
+        from = f;
+        to = t;
+        gater = g;
     }
 }

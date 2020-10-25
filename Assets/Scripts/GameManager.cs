@@ -14,8 +14,8 @@ public class GameManager : MonoBehaviour
     public Rect worldBounds; 
     public int objIDs { get; set; }
 
-    public Dictionary<int, Agent> agents = new Dictionary<int, Agent>();
-    public Dictionary<int, Food> foods = new Dictionary<int, Food>();
+    public List<Agent> agents = new List<Agent>();
+    public List<Food> foods = new List<Food>();
 
     public int maxFood;
     public int maxAgents;
@@ -25,13 +25,11 @@ public class GameManager : MonoBehaviour
 
     public static float MIN_SPEED = 0.2f;
     public static float MAX_SPEED = 100f;
+    public static float MIN_SIZE = 0.1f;
 
     // Start is called before the first frame update
     void Awake()
     {
-        Genome g = new Genome();
-
-
         Restart();
     }
 
@@ -44,13 +42,13 @@ public class GameManager : MonoBehaviour
 
         objIDs = 0;
 
-        agents = new Dictionary<int, Agent>();
-        foods = new Dictionary<int, Food>();
+        agents = new List<Agent>();
+        foods = new List<Food>();
     }
 
-    void CreateAgent()
+    public Agent CreateAgent()
     {
-        Instantiate(agentPrefab, new Vector3(0, 0, 0), Quaternion.identity);
+        return Instantiate(agentPrefab, new Vector3(0, 0, 0), Quaternion.identity).GetComponent<Agent>();
     }
 
     void CreateFood()
@@ -61,10 +59,16 @@ public class GameManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        maxFood = 100 * 200 / agents.Count;
+
         if (agents.Count < maxAgents)
             CreateAgent();
 
         if (foods.Count < maxFood)
             CreateFood();
+
+        for (int i = 0; i < agents.Count; i++)
+            if (agents[i].isDead)
+                Destroy(agents[i]);
     }
 }

@@ -150,7 +150,6 @@ public class Node
         {
             Connection c = connections.In[i];
             state += c.From.activation * c.weight * c.gain;
-            Debug.Log("SHOUL DNOT SEE THIS BITCH");
         }
 
         activation = squash(state);
@@ -161,7 +160,31 @@ public class Node
         return activation;
     }
 
-    public void Propogate(bool update, double target, double? rate = null, double? momentum = null)
+    public double NoTraceActivateForward(double? input = null)
+    {
+        if (type != NodeType.INPUT)
+        {
+            activation = squash(state);
+        }
+        else
+        {
+            activation = (double)input;
+        }
+
+        for (int i=0; i < connections.Out.Count; i++)
+        {
+            Connection c = connections.Out[i];
+            c.To.state += c.weight * activation * c.gain;
+        }
+
+        for (int i = 0; i < connections.Gated.Count; i++)
+            connections.Gated[i].gain = activation;
+
+
+        return activation;
+    }
+
+public void Propogate(bool update, double target, double? rate = null, double? momentum = null)
     {
         rate = (rate != null) ? rate : 0.3;
         momentum = (momentum != null) ? momentum : (double)0.3;
@@ -355,13 +378,14 @@ public class Node
     {
         if (target == this && connections.self.weight != 0.0) return true;
 
-        for (int i=0; i < connections.In.Count; i++)
+        for (int i=0; i < connections.Out.Count; i++)
         {
-            Connection c = connections.In[i];
-            if (c.From == target)
+            Connection c = connections.Out[i];
+            if (c.To == target)
                 return true;
         }
 
+        
         return false;
     }
 }
@@ -389,8 +413,8 @@ public class Connection
 
         crossTrace.Nodes = new List<Node>();
         crossTrace.Values = new List<double>();
-        weight = (w == 0.0) ? new System.Random().NextDouble() * 0.2 - 0.1 : w;
-        gain = 1;
+        weight = (w == 0.0) ? UnityEngine.Random.Range(-1f, 1f) : w;
+        gain = 1.0;
 
         previousDeltaWeight = 0.0;
         totalDeltaWeight = 0.0;

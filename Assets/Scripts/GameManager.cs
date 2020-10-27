@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
@@ -15,18 +16,24 @@ public class GameManager : MonoBehaviour
     public int objIDs { get; set; }
 
     public List<Agent> agents = new List<Agent>();
+    public int currentAgents = 0;
     public List<Food> foods = new List<Food>();
 
+    public int ticksPerFrame = 1;
+
     public int maxFood;
-    public int maxAgents;
+    public int initialAgentPopulation;
+    private int _spawnedAgents;
 
     public GameObject agentPrefab;
     public GameObject foodPrefab;
 
     public static float MIN_SPEED = 0.2f;
     public static float MAX_SPEED = 100f;
-    public static float MIN_SIZE = 0.1f;
+    public static float MIN_SIZE = 0.4f;
+    public static float MAX_SIZE = 1.25f;
 
+    private float k;
     // Start is called before the first frame update
     void Awake()
     {
@@ -38,17 +45,22 @@ public class GameManager : MonoBehaviour
         if (instance == null)
             instance = this;
 
-        worldBounds = new Rect(-worldWidth / 2, -worldHeight / 2, worldWidth, worldHeight);
+
+        worldBounds = new Rect(0, 0, worldWidth, worldHeight);
 
         objIDs = 0;
 
         agents = new List<Agent>();
         foods = new List<Food>();
+
+        _spawnedAgents = 0;
+        k = 1;
     }
 
     public Agent CreateAgent()
     {
         return Instantiate(agentPrefab, new Vector3(0, 0, 0), Quaternion.identity).GetComponent<Agent>();
+        
     }
 
     void CreateFood()
@@ -56,19 +68,60 @@ public class GameManager : MonoBehaviour
         Instantiate(foodPrefab, new Vector3(0, 0, 0), Quaternion.identity);
     }
 
+    void DestroyRandomFood()
+    {
+        int removeIndex = Random.Range(0, foods.Count - 1);
+        Food f = foods[removeIndex];
+        foods.RemoveAt(removeIndex);
+
+        Destroy(f.gameObject);
+    }
+
     // Update is called once per frame
     void Update()
     {
-        maxFood = 100 * 200 / agents.Count;
+        
+        //maxFood = 300;
 
-        if (agents.Count < maxAgents)
-            CreateAgent();
+        for (int t = 0; t < ticksPerFrame; t++)
+        {
+            k = Mathf.Exp((200 - agents.Count) / (100 * 5f));
+            maxFood = (int)(k * 100 * (200 / ((agents.Count > 0) ? agents.Count : 1)));
+            if (agents.Count < initialAgentPopulation)
+            {
+                CreateAgent().Birth(objIDs++);
+            }
 
-        if (foods.Count < maxFood)
-            CreateFood();
+            if (foods.Count < maxFood)
+                CreateFood();
+            else if (foods.Count > maxFood)
+                DestroyRandomFood();
 
-        for (int i = 0; i < agents.Count; i++)
-            if (agents[i].isDead)
-                Destroy(agents[i]);
+
+            /*Parallel.For(0, agents.Count, i => {
+                if (agents[i].isDead)
+                {
+                    GameObject g = agents[i].gameObject;
+                    agents.RemoveAt(i);
+                    Destroy(g);
+                }
+
+                agents[i].DoTick();
+            });*/
+
+            for (int i = 0; i < agents.Count; i++)
+            {
+                agents[i].DoTick();
+                if (agents[i].isDead)
+                {
+                    GameObject g = agents[i].gameObject;
+                    agents.RemoveAt(i);
+                    Destroy(g);
+                }
+            }
+
+            currentAgents = agents.Count;
+
+        }
     }
 }

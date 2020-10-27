@@ -46,25 +46,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08524364eccab924d832a3c0a4c1fb31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  neuronInput: 6
-  neuronOutput: 2
+  neuronInput: 9
+  neuronOutput: 4
   biasNeuron: 1
-  baseEnergy: 100
-  baseHealth: 100
-  baseSize: 0.1
-  baseSpeed: 1.4
   maxEnergy: 0
   maxHealth: 0
-  maxSpeed: 0
   maxSize: 0
   currentHealth: 0
   currentEnergy: 0
-  currentSpeed: 0
-  direction: 0
+  _currentSpeed: 0
+  facingDirection: 0
+  wantDirection: 0
   currentSize: 0
   currentMaturity: 0
   maturationAge: 0
   age: 0
+  lifeExpectancy: 0
+  litterSize: 0
+  lastGestationAge: 0
   isDead: 0
   MIN_FOOD_DIST: 1
 --- !u!58 &528040631333100061
@@ -80,9 +79,9 @@ CircleCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0.0034108162, y: 0}
+  m_Offset: {x: 0.0030457973, y: 0}
   serializedVersion: 2
-  m_Radius: 1.1125569
+  m_Radius: 0.6667849
 --- !u!50 &681371786
 Rigidbody2D:
   serializedVersion: 4
@@ -114,7 +113,6 @@ GameObject:
   m_Component:
   - component: {fileID: 528040633156736296}
   - component: {fileID: 528040633156736303}
-  - component: {fileID: 528040633156736302}
   m_Layer: 0
   m_Name: circle
   m_TagString: Untagged
@@ -131,7 +129,7 @@ Transform:
   m_GameObject: {fileID: 528040633156736297}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.6, y: 0.6, z: 1}
   m_Children: []
   m_Father: {fileID: 528040631333100062}
   m_RootOrder: 0
@@ -187,29 +185,3 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!114 &528040633156736302
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 528040633156736297}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7db70e0ea77f5ac47a8f4565a9406397, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_ShadowGroup: 0
-  m_HasRenderer: 1
-  m_UseRendererSilhouette: 1
-  m_CastsShadows: 1
-  m_SelfShadows: 0
-  m_ApplyToSortingLayers: 00000000
-  m_ShapePath:
-  - {x: -1.125, y: -1.125, z: 0}
-  - {x: 1.125, y: -1.125, z: 0}
-  - {x: 1.125, y: 1.125, z: 0}
-  - {x: -1.125, y: 1.125, z: 0}
-  m_ShapePathHash: 0
-  m_Mesh: {fileID: 0}
-  m_InstanceId: -1244

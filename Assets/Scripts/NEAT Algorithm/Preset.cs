@@ -39,20 +39,32 @@ public class Preset
     {
         Network network = new Network(input, output, bias, false);
 
-
         if (UnityEngine.Random.value <= Globals.MUTATION_CHANCE)
         {
-            float rand = UnityEngine.Random.value;
-            if (rand < .8)
-                network.Mutate(MUTATION_TYPE.MOD_WEIGHT);
+            bool mutatedOnce = false;
+            while (!mutatedOnce)
+            {
+                float rand = UnityEngine.Random.value;
+                if (rand < .8)
+                {
+                    network.Mutate(MUTATION_TYPE.MOD_WEIGHT);
+                    mutatedOnce = true;
+                }
 
-            rand = UnityEngine.Random.value;
-            if (rand < .05)
-                network.Mutate(MUTATION_TYPE.ADD_CONN);
+                rand = UnityEngine.Random.value;
+                if (rand < .05)
+                {
+                    network.Mutate(MUTATION_TYPE.ADD_CONN);
+                    mutatedOnce = true;
+                }
 
-            rand = UnityEngine.Random.value;
-            if (rand < .01)
-                network.Mutate(MUTATION_TYPE.ADD_NODE);
+                rand = UnityEngine.Random.value;
+                if (rand < .01)
+                {
+                    network.Mutate(MUTATION_TYPE.ADD_NODE);
+                    mutatedOnce = true;
+                }
+            }
         }
 
         return network;

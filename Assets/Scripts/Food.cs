@@ -37,7 +37,15 @@ public class Food : MonoBehaviour
 
     void Create(int id)
     {
+        GameManager.instance.foods.Add(this);
         this.ID = id;
+
+        Initialize();
+    }
+
+    void Initialize()
+    {
+        
         currentBioMass = maxBioMass;
 
         if (type == BioMassType.Meat)
@@ -45,28 +53,34 @@ public class Food : MonoBehaviour
         else if (type == BioMassType.Plant)
             _spriteRenderer.color = Color.green;
 
-        GameManager.instance.foods.Add(this);
 
-        float x = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.x, GameManager.instance.worldBounds.width / 2));
-        float y = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.y, GameManager.instance.worldBounds.height / 2));
+
+        float x = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.x, GameManager.instance.worldBounds.width, false));
+        float y = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.y, GameManager.instance.worldBounds.height, false));
         _transform.position = new Vector3(x, y, 0);
 
         isDead = false;
     }
 
-    public IEnumerator Respawn()
+    IEnumerator Respawn()
     {
         yield return new WaitForSeconds(respawnDelay);
 
-        
 
-        Create(this.ID);
+
+        Initialize();
+    }
+
+    public void CheckDead()
+    {
+        if (currentBioMass <= 0)
+            StartCoroutine(Respawn());
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (currentBioMass <= 0)
-            StartCoroutine(Respawn());
+        
     }
+
 }

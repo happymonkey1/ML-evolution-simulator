@@ -25,7 +25,7 @@ public class Network
     public Network(int i, int o, bool biased = false, bool fullConnect = true)
     {
         this.biased = biased;
-        input = i + ((biased) ? 1 : 0);
+        input = i;
         output = o;
 
         _rand = new System.Random();
@@ -36,14 +36,20 @@ public class Network
         dropout = 0.0;
 
         if (biased)
-            nodes.Add(new Node(Node.NodeType.CONSTANT));
-        for(int j=0; j < input + output; j++)
+        {
+            nodes.Add(new Node(Node.NodeType.INPUT));
+            
+        }
+        for (int j=0; j < input + output; j++)
         {
             Node.NodeType type = (j < input) ? Node.NodeType.INPUT : Node.NodeType.OUTPUT;
             nodes.Add(new Node(type));
             nodes[j].index = j;
         }
 
+        if (biased)
+            input += 1;
+        
 
         if (fullConnect)
             FullConnect();
@@ -78,7 +84,7 @@ public class Network
                 output.Add(activation);
             }else
             {
-                if (training) nodes[i].mask = (new System.Random().NextDouble() < dropout) ? 0 : 1;
+                if (training) nodes[i].mask = (_rand.NextDouble() < dropout) ? 0 : 1;
                 nodes[i].Activate();
             }
         }
@@ -95,7 +101,7 @@ public class Network
         {
             
             if (nodes[i].type == Node.NodeType.INPUT)
-                nodes[i].NoTraceActivate(inputs[i - ((biased) ? 1 : 0)]);
+                nodes[i].NoTraceActivate(inputs[i]);
             else if (nodes[i].type == Node.NodeType.OUTPUT)
             {
                 double activation = nodes[i].NoTraceActivate();
@@ -106,6 +112,33 @@ public class Network
                 nodes[i].NoTraceActivate();
             }
         }
+
+        return output;
+    }
+
+    public List<double> FeedForward(List<double> inputs)
+    {
+        List<double> output = new List<double>();
+
+
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            if (nodes[i].type == Node.NodeType.INPUT)
+                nodes[i].NoTraceActivateForward(inputs[i]);
+            else if (nodes[i].type == Node.NodeType.OUTPUT)
+            {
+                double activation = nodes[i].NoTraceActivateForward();
+                output.Add(activation);
+            }
+            else
+            {
+                nodes[i].NoTraceActivateForward();
+            }
+        }
+
+        if (Globals.CLEAR)
+            for (int i = 0; i < nodes.Count; i++)
+                nodes[i].Clear();
 
         return output;
     }
@@ -237,7 +270,7 @@ public class Network
             if (connections.Count == 0) break;
 
             Node gater = gaters[i];
-            int connectionIndex = new System.Random().Next(connections.Count);
+            int connectionIndex = _rand.Next(connections.Count);
 
             Gate(gater, connections[connectionIndex]);
             connections.RemoveAt(connectionIndex);
@@ -256,7 +289,7 @@ public class Network
         {
             case MUTATION_TYPE.ADD_NODE:
                 if (connections.Count == 0) break;
-                Connection c = connections[new System.Random().Next(connections.Count)];
+                Connection c = connections[_rand.Next(connections.Count)];
                 Node gater = c.Gater;
                 Disconnect(c.From, c.To);
 
@@ -297,26 +330,50 @@ public class Network
                 List<(Node, Node)> available = new List<(Node, Node)>();
 
                 Debug.Log("THIS BITCH MUTATED A CONNECTION");
-                for (int i=0; i < nodes.Count - output; i++)
+                /*for (int i=0; i < nodes.Count - output; i++)
                 {
                     Node node1 = nodes[i];
-                    for(int j = Mathf.Max(i +1, input); j < nodes.Count; j++)
+                    for(int j = input; j < nodes.Count; j++)
                     {
                         Node node2 = nodes[j];
                         if (!node1.IsProjectingTo(node2))
                             available.Add((node1, node2));
                     }
                 }
-
+                (Node x, Node y) pair = available[_rand.Next(available.Count)];
+                
                 if (available.Count == 0)
                 {
                     Debug.LogWarning("No More connections available");
                     break;
                 }
 
-                (Node x, Node y) pair = available[_rand.Next(available.Count)];
+                
+                
+                
                 Connect(pair.x, pair.y);
+                break;*/
+
+
+                Node rand1 = nodes[_rand.Next(nodes.Count)];
+                Node rand2 = nodes[_rand.Next(nodes.Count)];
+                while(!CheckIfNodesCanBeConnected(rand1, rand2))
+                {
+                    rand1 = nodes[_rand.Next(nodes.Count)];
+                    rand2 = nodes[_rand.Next(nodes.Count)];
+                }
+
+                if(rand1.index > rand2.index)
+                {
+                    Node temp = rand1;
+                    rand1 = rand2;
+                    rand2 = temp;
+                }
+
+                Connect(rand1, rand2);
                 break;
+
+                
 
             case MUTATION_TYPE.SUB_CONN:
                 List<Connection> possible = new List<Connection>();
@@ -338,12 +395,24 @@ public class Network
                 break;
             case MUTATION_TYPE.MOD_WEIGHT:
                 if (connections.Count + selfConnections.Count == 0) break;
+
+                Debug.Log("NEW WEIGHT LETS FUCKIN GOOOOOO");
                 List<Connection> allConnections = new List<Connection>();
                 allConnections.AddRange(connections);
                 allConnections.AddRange(selfConnections);
                 Connection c1 = allConnections[_rand.Next(allConnections.Count)];
-                double mod = _rand.NextDouble() * (1.0 - (-1.0) + (-1.0));
-                c1.weight += mod;
+
+                if (UnityEngine.Random.value < 0.1f)
+                    c1.weight = UnityEngine.Random.Range(-1f, 1f);
+                else
+                {
+                    c1.weight += NativeMethods.RandomGaussian() / 50;
+                    if (c1.weight > 1f)
+                        c1.weight = 1f;
+                    else if (c1.weight < -1f)
+                        c1.weight = -1f;
+                }
+                
 
                 break;
             case MUTATION_TYPE.MOD_BIAS:
@@ -353,6 +422,14 @@ public class Network
             default:
                 throw new Exception("MUTATION CASE HAS NOT BEEN ADDED");  
         }
+    }
+
+    public bool CheckIfNodesCanBeConnected(Node n1, Node n2)
+    {
+        if (n1.type == n2.type) return false;
+        if (n1.IsProjectingTo(n2)) return false;
+        if (n1 == n2) return false;
+        return true;
     }
 
     public (double error, int iterations, TimeSpan elapsed) Train( dynamic set )
@@ -530,7 +607,7 @@ public class Network
         if (network1.input != network2.input || network1.output != network2.output)
             throw new Exception("Networks are not of the same size");
 
-        Network offspring = new Network(network1.input, network1.output);
+        Network offspring = new Network(network1.input, network1.output, biased, false);
         offspring.connections = new List<Connection>();
         offspring.nodes = new List<Node>();
 
@@ -555,7 +632,7 @@ public class Network
             network1.nodes[i].index = i;
 
         for (int i = 0; i < network2.nodes.Count; i++)
-            network1.nodes[i].index = i;
+            network2.nodes[i].index = i;
 
         for(int i=0; i < size; i++)
         {
@@ -680,6 +757,10 @@ public class Network
             rand = UnityEngine.Random.value;
             if (rand < .01)
                 offspring.Mutate(MUTATION_TYPE.ADD_NODE);
+
+            rand = UnityEngine.Random.value;
+            if (rand < .005)
+                offspring.Mutate(MUTATION_TYPE.SUB_CONN);
         }
 
         return offspring;

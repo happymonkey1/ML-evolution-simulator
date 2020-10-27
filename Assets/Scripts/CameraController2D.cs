@@ -24,7 +24,7 @@ namespace UnityTemplateProjects
             public float targetOrtho;
             public float smoothSpeed = 2.0f;
             public float minOrtho = 1.0f;
-            public float maxOrtho = 40.0f;
+            public float maxOrtho = 80.0f;
 
 
             public void SetFromTransform(Transform t)

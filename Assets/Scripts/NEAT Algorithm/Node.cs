@@ -17,8 +17,8 @@ public class Node
     public int index;
     public double bias;
 
-    public delegate double Squash(double x, bool derivate = false);
-    public Squash squash;
+    
+    public ACTIVATION.Squash squash;
 
     public double activation;
     private double _derivative;
@@ -264,7 +264,7 @@ public void Propogate(bool update, double target, double? rate = null, double? m
         if (target == this)
         {
             if (this.connections.self.weight == 0.0)
-                this.connections.self.weight = (weight != null) ? (double)weight : 1.0;
+                this.connections.self.weight = (weight != null) ? (double)weight : UnityEngine.Random.Range(-1f, 1f);
 
             connections.Add(this.connections.self);
         }
@@ -272,7 +272,7 @@ public void Propogate(bool update, double target, double? rate = null, double? m
             throw new System.ArgumentException("This connection already exists");
         else
         {
-            Connection c = new Connection(this, target, (double)weight);
+            Connection c = new Connection(this, target, (weight != null) ? weight : null);
             target.connections.In.Add(c);
             this.connections.Out.Add(c);
 
@@ -371,7 +371,17 @@ public void Propogate(bool update, double target, double? rate = null, double? m
 
     public void Mutate(MUTATION_TYPE method)
     {
-        throw new MissingMethodException();
+        switch (method)
+        {
+            case MUTATION_TYPE.MOD_ACTIVATION:
+                ACTIVATION.Squash s = ACTIVATION.POSSIBLE[UnityEngine.Random.Range(0, ACTIVATION.POSSIBLE.Count)];
+                while (s == this.squash)
+                    s = ACTIVATION.POSSIBLE[UnityEngine.Random.Range(0, ACTIVATION.POSSIBLE.Count)];
+                squash = s;
+                break;
+            default:
+                throw new MissingMethodException("IM LAZY");
+        }
     }
 
     public bool IsProjectingTo(Node target)
@@ -406,14 +416,14 @@ public class Connection
     public double totalDeltaWeight = 0;
 
     public CrossTrace crossTrace;
-    public Connection(Node from, Node to, double w = 0.0)
+    public Connection(Node from, Node to, double? w = null)
     {
         From = from;
         To = to;
 
         crossTrace.Nodes = new List<Node>();
         crossTrace.Values = new List<double>();
-        weight = (w == 0.0) ? UnityEngine.Random.Range(-1f, 1f) : w;
+        weight = (w == null) ? UnityEngine.Random.Range(-1f, 1f) : (double)w;
         gain = 1.0;
 
         previousDeltaWeight = 0.0;

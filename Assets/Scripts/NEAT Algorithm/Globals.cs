@@ -14,6 +14,8 @@ public class Globals
 
     public const float MUTATION_CHANCE = .3f;
     public const float BASE_GENE_MUTATION_CHANCE = 0.05f;
+
+    public const bool ALLOW_OUTPUT_ACTIVATION_MUTATION = false;
 }
 
 public class Mutations
@@ -23,9 +25,9 @@ public class Mutations
         MUTATION_TYPE.ADD_NODE, 
         MUTATION_TYPE.SUB_NODE,
         MUTATION_TYPE.MOD_WEIGHT, 
-        MUTATION_TYPE.MOD_BIAS, 
         MUTATION_TYPE.ADD_CONN, 
-        MUTATION_TYPE.SUB_CONN 
+        MUTATION_TYPE.SUB_CONN,
+        MUTATION_TYPE.MOD_ACTIVATION
     };
 }
 

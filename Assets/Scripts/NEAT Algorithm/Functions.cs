@@ -21,6 +21,7 @@ public class ACTIVATION
         else
             return y * (1 - y);
     }
+
     public static double TANH(double x, bool derivate = false)
     {
         if (derivate) return 1 - Math.Pow(Math.Tanh(x), 2);
@@ -72,7 +73,7 @@ public class ACTIVATION
         if (derivate) return 1 / 2 * (1 + d) * (1 - d);
         return d;
     }
-    public static double HARD_TANHfunction(double x, bool derivate = false)
+    public static double HARD_TANH(double x, bool derivate = false)
     {
         if (derivate) return x > -1 && x < 1 ? 1 : 0;
         return Math.Max(-1, Math.Min(1, x));
@@ -97,7 +98,9 @@ public class ACTIVATION
         return fx * scale;
     }
 
-    
+
+    public delegate double Squash(double x, bool derivate = false);
+    public static List<Squash> POSSIBLE = new List<Squash>() { LOGISTIC, SINUSOID, IDENTITY, RELU, TANH };
 }
 
 

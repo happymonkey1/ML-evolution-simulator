@@ -33,6 +33,8 @@ public class GameManager : MonoBehaviour
     public static float MIN_SIZE = 0.4f;
     public static float MAX_SIZE = 1.25f;
 
+    public static bool IS_WORLD_WRAPPING = false;
+
     private float k;
     // Start is called before the first frame update
     void Awake()
@@ -85,8 +87,8 @@ public class GameManager : MonoBehaviour
 
         for (int t = 0; t < ticksPerFrame; t++)
         {
-            k = Mathf.Exp((200 - agents.Count) / (100 * 5f));
-            maxFood = (int)(k * 100 * (200 / ((agents.Count > 0) ? agents.Count : 1)));
+            k = Mathf.Exp((300 - agents.Count) / (100 * 5f));
+            maxFood = (int)(k * 100 * (300 / ((agents.Count > 0) ? agents.Count : 1)));
             if (agents.Count < initialAgentPopulation)
             {
                 CreateAgent().Birth(objIDs++);

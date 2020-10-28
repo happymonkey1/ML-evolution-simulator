@@ -13,6 +13,7 @@ public class Agent : MonoBehaviour
 
     private Transform _transform;
     private SpriteRenderer _sr;
+    private Collider2D _col;
 
 
     public BaseGenes genes = new BaseGenes();
@@ -29,6 +30,10 @@ public class Agent : MonoBehaviour
     public float CurrentSpeed { get { return _currentSpeed; } set { _currentSpeed = Mathf.Clamp(value, -MaxSpeed, MaxSpeed); } }
     [SerializeField]
     private float _currentSpeed;
+    public float CurrentTurningSpeed { get { return _currentTurningSpeed; } set { _currentTurningSpeed = Mathf.Clamp(value, 0, Mathf.PI); } }
+    [SerializeField]
+    private float _currentTurningSpeed;
+
     public float facingDirection;
     public float wantDirection;
     public float currentSize;
@@ -54,6 +59,7 @@ public class Agent : MonoBehaviour
     public int MIN_FOOD_DIST = 1;
 
     Network Brain { get; set; }
+    [SerializeField]
     public int ID { get; set; }
 
     
@@ -64,7 +70,7 @@ public class Agent : MonoBehaviour
         _transform = GetComponent<Transform>();
         _velocity = new Vector2(0f, 0f);
         _sr = GetComponentInChildren<SpriteRenderer>();
-
+        _col = GetComponent<Collider2D>();
 
     }
 
@@ -92,8 +98,9 @@ public class Agent : MonoBehaviour
 
         currentMaturity = age / maturationAge;
         CurrentSpeed = 0f;
+        CurrentTurningSpeed = genes.baseTurningSpeed;
         currentSize = Mathf.Clamp(genes.baseSize * currentMaturity, GameManager.MIN_SIZE, maxSize);
-        currentHealth = maxHealth * NativeMethods.InverseE;
+        currentHealth = maxHealth;
         currentEnergy = maxEnergy;
 
         ID = id;
@@ -116,88 +123,79 @@ public class Agent : MonoBehaviour
         
     }
 
-    public (bool, float) FindClosestAgent()
+    public (float, float) FindClosestAgent()
     {
-        if (GameManager.instance.agents.Count == 0) return (false, 0);
-
-        float min = float.PositiveInfinity;
-        float angle = 0f;
-        for (int i = 0; i < GameManager.instance.agents.Count; i++)
-        {
-            Agent a = GameManager.instance.agents[i];
-            if (a.isDead) continue;
-            if (a.ID == this.ID) continue;
-            
-
-            float dx = a.transform.position.x - transform.position.x;
-            float dy = a.transform.position.y - transform.position.y;
-            float dist = Mathf.Pow(dx, 2) + Mathf.Pow(dy, 2);
-            if (dist < min)
-            {
-                angle = Mathf.Atan2(dy, dx);
-                min = dist;
-            }
-        }
-
-
-        while (angle < 0)
-            angle += Mathf.PI * 2;
-
-        return ((min <= genes.baseVision) ? true : false, angle);
-    }
-
-    public (bool, float) FindClosestFood()
-    {
-        if (GameManager.instance.foods.Count == 0) return (false, -1);
+        if (GameManager.instance.foods.Count == 0) return (1000f, -1);
         float min = float.PositiveInfinity;
         float angle = 0;
 
         Collider2D[] foundColliders = Physics2D.OverlapCircleAll(_transform.position, genes.baseVision);
         foreach (Collider2D col in foundColliders)
         {
-            if (col.gameObject.tag == "Food")
+            if (col == _col) continue;
+            if (col.gameObject.tag == "Agent")
             {
-                Food f = col.gameObject.GetComponent<Food>();
-                if (f.isDead) continue;
-
-                float dx = f.transform.position.x - transform.position.x;
-                float dy = f.transform.position.y - transform.position.y;
-                float dist = Mathf.Pow(dx, 2) + Mathf.Pow(dy, 2);
-                if (dist < min)
+                
+                ColliderDistance2D dist = _col.Distance(col);
+                float dy = col.transform.position.y - _transform.position.y;
+                float dx = col.transform.position.x - _transform.position.x;
+                if (dist.distance < min)
                 {
-
-                    min = dist;
+                    min = dist.distance;
                     angle = Mathf.Atan2(dy, dx);
                 }
             }
         }
-        /*for (int i=0; i < GameManager.instance.foods.Count; i++)
-        {
-            Food f = GameManager.instance.foods[i];
-            if (f.isDead) continue;
-
-            float dx = f.transform.position.x - transform.position.x;
-            float dy = f.transform.position.y - transform.position.y;
-            float dist = Mathf.Pow(dx, 2) + Mathf.Pow(dy, 2);
-            if (dist < min)
-            {
-
-                min = dist;
-                angle = Mathf.Atan2(dy, dx);
-            }
-        }*/
 
         while (angle < 0)
             angle += Mathf.PI * 2;
 
-        return ((min <= genes.baseVision) ? true : false, angle);
+        return ((min <= genes.baseVision) ? min : 1000f, angle);
+    }
+
+    public (float, float) FindClosestFood()
+    {
+        if (GameManager.instance.foods.Count == 0) return (1000f, -1);
+        float min = float.PositiveInfinity;
+        float angle = 0;
+
+        Collider2D[] foundColliders = Physics2D.OverlapCircleAll(_transform.position, genes.baseVision);
+        
+        foreach (Collider2D col in foundColliders)
+        {
+            if (col.gameObject.tag == "Food")
+            {
+                ColliderDistance2D dist = _col.Distance(col);
+                float dy = col.transform.position.y - _transform.position.y;
+                float dx = col.transform.position.x - _transform.position.x;
+                if (dist.distance < min)
+                {
+
+                    min = dist.distance;
+                    angle = Mathf.Atan2(dy, dx);
+                }
+            }
+        }
+
+        while (angle < 0)
+            angle += Mathf.PI * 2;
+
+        return ((min <= genes.baseVision) ? min : 1000f, angle);
     }
 
     void OnTriggerEnter2D(Collider2D collider)
     {
         if (collider.gameObject.tag == "Food")
         {
-            Eat(collider.gameObject.GetComponent<Food>());
+
+            float dx = collider.gameObject.transform.position.x - _transform.position.x;
+            float dy = collider.gameObject.transform.position.y - _transform.position.y;
+            float angleBtwn = Mathf.Atan2(dy, dx);
+            while (angleBtwn < 0)
+                angleBtwn += Mathf.PI * 2;
+
+           // if (angleBtwn <= Mathf.PI/4)
+                Eat(collider.gameObject.GetComponent<Food>());
         }
 
     }
@@ -205,6 +203,15 @@ public class Agent : MonoBehaviour
     {
         if (collision.gameObject.tag == "Food")
         {
+            //float angleBtwn = Vector3.Angle(_transform.position + new Vector3(Mathf.Cos(facingDirection), Mathf.Sin(facingDirection)), collision.gameObject.transform.position);
+
+            float dx = collision.gameObject.transform.position.x - _transform.position.x;
+            float dy = collision.gameObject.transform.position.y - _transform.position.y;
+            float angleBtwn = Mathf.Atan2(dy, dx);
+            while (angleBtwn < 0)
+                angleBtwn += Mathf.PI * 2;
+
+            //if (angleBtwn - facingDirection <= Mathf.PI/4)
             Eat(collision.gameObject.GetComponent<Food>());
         }
 
@@ -213,11 +220,21 @@ public class Agent : MonoBehaviour
     private void Eat(Food f)
     {
         float hunger = maxEnergy - currentEnergy;
-        currentEnergy = Mathf.Min(f.currentBioMass + currentEnergy, maxEnergy);
+        float dinner = 0;
+        if (f.currentBioMass - hunger >= 0)
+            dinner = hunger;
+        else
+            dinner = f.currentBioMass;
+
+        currentEnergy += dinner;
+        if (currentEnergy > maxEnergy)
+            Debug.LogWarning("FUCK THIS SHOULDNT APPEAR");
+
+
         if (currentEnergy / maxEnergy > 0.8)
             Reproduce();
 
-        f.currentBioMass = 0;
+        f.currentBioMass -= dinner;
         f.CheckDead();
     }
 
@@ -276,34 +293,38 @@ public class Agent : MonoBehaviour
         if(biasNeuron)
             _brainVision.Add(1.0);                                     //0
 
-        double hunger = (currentEnergy / maxEnergy);
+        double hunger = (maxEnergy - currentEnergy);
         hunger = (hunger < 0) ? 0 : hunger;
-        _brainVision.Add(currentEnergy);                               //1
+        _brainVision.Add(hunger);                                      //1
 
         double speed = Mathf.Abs(CurrentSpeed / MaxSpeed);
         speed = (speed > 1) ? 1.0 : speed; 
-        _brainVision.Add(CurrentSpeed);                                //2
+        _brainVision.Add(speed);                                       //2
 
         double health = currentHealth / maxHealth;
         health = (health < 0) ? 0 : health;
         _brainVision.Add(health);                                      //3
 
+        _brainVision.Add(facingDirection);                             //4
+
         //======================================
-        (bool x, float y) closestFood = FindClosestFood();
-        _brainVision.Add((closestFood.x) ? 1.0f : 0.0f);               //4
+        (float x, float y) closestFood = FindClosestFood();
+        _brainVision.Add(closestFood.x);                               //5
 
-        _brainVision.Add(closestFood.y);                               //5
+        _brainVision.Add(closestFood.y);                               //6
+        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(closestFood.y) * ((closestFood.x < 1000f) ? closestFood.x : .5f), Mathf.Sin(closestFood.y) * ((closestFood.x < 1000f) ? closestFood.x : .5f)), Color.blue);
 
-        (bool x, float y) closestAgent = FindClosestAgent();
-        _brainVision.Add( (closestAgent.x) ? 1.0f : 0.0f );            //6
+        (float x, float y) closestAgent = FindClosestAgent();
+        _brainVision.Add( closestAgent.x );                            //7
 
-        _brainVision.Add(closestAgent.y);                              //7
+        _brainVision.Add(closestAgent.y);                              //8
+        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(closestAgent.y) * ((closestAgent.x < 1000f) ? closestAgent.x : .5f), Mathf.Sin(closestAgent.y) * ((closestAgent.x < 1000f) ? closestAgent.x : .5f)), Color.green);
         //======================================
 
-        _brainVision.Add(age);
+        _brainVision.Add(age);                                         //9
 
         _canMate = (currentMaturity >= 1.0) ? true : false;
-        _brainVision.Add(currentMaturity);
+        _brainVision.Add(currentMaturity);                             //10
 
         //Debug.Log($"inputs: {string.Join(" ", _brainVision)}");
 
@@ -319,7 +340,8 @@ public class Agent : MonoBehaviour
         int maxIndex = 0;
         _brainDecisions = Brain.FeedForward(_brainVision);
 
-
+        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(facingDirection) * genes.baseVision, Mathf.Sin(facingDirection) * genes.baseVision));
+        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(wantDirection) * genes.baseVision, Mathf.Sin(wantDirection) * genes.baseVision), Color.red);
 
         //Debug.Log($"outputs: {string.Join(" ", _brainDecisions)}");
 
@@ -343,10 +365,10 @@ public class Agent : MonoBehaviour
                 CurrentSpeed = -MaxSpeed;
                 break;
             case 2: //RIGHT
-                wantDirection = facingDirection - (Mathf.PI / 8);
+                wantDirection = facingDirection - CurrentTurningSpeed;
                 break;
             case 3: //LEFT
-                wantDirection = facingDirection + (Mathf.PI / 8);
+                wantDirection = facingDirection + CurrentTurningSpeed;
                 break;
 
         }
@@ -361,14 +383,17 @@ public class Agent : MonoBehaviour
         _velocity = new Vector2(Mathf.Cos(facingDirection), Mathf.Sin(facingDirection)) * (CurrentSpeed * Time.deltaTime);
         Vector3 final = _transform.position + new Vector3(_velocity.x, _velocity.y, 0);
 
-        float width = GameManager.instance.worldBounds.width;
-        float height = GameManager.instance.worldBounds.height;
-        final.x = final.x % width;
-        final.y = final.y % height;
 
-        final.x = (width + final.x) % width;
-        final.y = (height + final.y) % height; 
+        if (GameManager.IS_WORLD_WRAPPING)
+        {
+            float width = GameManager.instance.worldBounds.width;
+            float height = GameManager.instance.worldBounds.height;
+            final.x = final.x % width;
+            final.y = final.y % height;
 
+            final.x = (width + final.x) % width;
+            final.y = (height + final.y) % height;   
+        }
         _transform.position = final;
 
         if (facingDirection != wantDirection)
@@ -421,6 +446,7 @@ public struct BaseGenes
     public float baseHealth;
     public float baseSize;
     public float baseMaxSpeed;
+    public float baseTurningSpeed;
     public float baseVision;
     
     public float baseLifeExpectancy;
@@ -440,6 +466,7 @@ public struct BaseGenes
         baseHealth = pattern.baseHealth + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(pattern.baseHealth * .01f, pattern.baseHealth * 0.1f, true) : 0f);
         baseSize = pattern.baseSize + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(pattern.baseSize * .01f, pattern.baseSize * 0.1f, true) : 0f);
         baseMaxSpeed = pattern.baseMaxSpeed + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(pattern.baseMaxSpeed * .01f, pattern.baseMaxSpeed * 0.1f, true) : 0f);
+        baseTurningSpeed = pattern.baseTurningSpeed + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(pattern.baseTurningSpeed * .01f, pattern.baseTurningSpeed * 0.1f, true) : 0f);
         baseVision = pattern.baseVision + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(pattern.baseVision * .01f, pattern.baseVision * 0.1f, true) : 0f);
 
         baseLifeExpectancy = pattern.baseLifeExpectancy + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(pattern.baseLifeExpectancy * .01f, pattern.baseLifeExpectancy * 0.1f, true) : 0f);
@@ -461,7 +488,8 @@ public struct BaseGenes
         baseSize = Mathf.Clamp(baseSize, GameManager.MIN_SIZE, GameManager.MAX_SIZE);
         //baseHealth = 100;
         baseMaxSpeed = 2.1f;
-        baseVision = 5;
+        baseTurningSpeed = UnityEngine.Random.Range(Mathf.PI / 8, Mathf.PI / 4);
+        baseVision = 10f;
 
         baseMaturationAge = new System.Random().Next(5, 20);
         baseLifeExpectancy = baseMaturationAge + Random.Range(5, 7);

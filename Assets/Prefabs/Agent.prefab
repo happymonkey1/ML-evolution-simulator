@@ -12,9 +12,9 @@ GameObject:
   - component: {fileID: 528040631333100063}
   - component: {fileID: 528040631333100061}
   - component: {fileID: 681371786}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Agent
-  m_TagString: Untagged
+  m_TagString: Agent
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -46,7 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08524364eccab924d832a3c0a4c1fb31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  neuronInput: 9
+  neuronInput: 10
   neuronOutput: 4
   biasNeuron: 1
   maxEnergy: 0
@@ -55,6 +55,7 @@ MonoBehaviour:
   currentHealth: 0
   currentEnergy: 0
   _currentSpeed: 0
+  _currentTurningSpeed: 0
   facingDirection: 0
   wantDirection: 0
   currentSize: 0
@@ -79,7 +80,7 @@ CircleCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0.0030457973, y: 0}
+  m_Offset: {x: 0, y: 0}
   serializedVersion: 2
   m_Radius: 0.6667849
 --- !u!50 &681371786
@@ -113,7 +114,7 @@ GameObject:
   m_Component:
   - component: {fileID: 528040633156736296}
   - component: {fileID: 528040633156736303}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: circle
   m_TagString: Untagged
   m_Icon: {fileID: 0}

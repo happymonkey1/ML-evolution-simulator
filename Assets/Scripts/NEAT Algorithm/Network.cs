@@ -163,9 +163,9 @@ public class Network
             nodes[i].Clear();
     }
 
-    public List<Connection> Connect(Node from, Node to, double weight = 1.0)
+    public List<Connection> Connect(Node from, Node to, double? weight = null)
     {
-        List<Connection> connections = from.Connect(to, weight);
+        List<Connection> connections = from.Connect(to, (weight != null) ? weight : null);
 
         for(int i =0; i < connections.Count; i++)
         {
@@ -250,6 +250,7 @@ public class Network
             Disconnect(node, c.To);
         }
 
+        /*
         List<Connection> connections = new List<Connection>();
         for (int i=0; i < inputs.Count; i++)
         {
@@ -277,7 +278,7 @@ public class Network
         }
 
         for (int i = node.connections.Gated.Count - 1; i >= 0; i--)
-            UnGate(node.connections.Gated[i]);
+            UnGate(node.connections.Gated[i]);*/
 
         Disconnect(node, node);
         nodes.RemoveAt(index);
@@ -291,6 +292,7 @@ public class Network
                 if (connections.Count == 0) break;
                 Connection c = connections[_rand.Next(connections.Count)];
                 Node gater = c.Gater;
+                double oldWeight = c.weight;
                 Disconnect(c.From, c.To);
 
 
@@ -302,13 +304,13 @@ public class Network
                 
                 Node node = new Node(Node.NodeType.HIDDEN);
 
-                Debug.Log("MIGHT WANT TO ADD MUTATION FOR ACTIVATION FUNC");
+                node.Mutate(MUTATION_TYPE.MOD_ACTIVATION);
 
                 int minBound = Math.Min(toIndex, nodes.Count - output);
                 nodes.Insert(minBound, node);
 
                 Connection newConn1 = Connect(c.From, node)[0];
-                Connection newConn2 = Connect(node, c.To)[0];
+                Connection newConn2 = Connect(node, c.To, oldWeight)[0];
 
                 if (gater != null)
                     Gate(gater, (UnityEngine.Random.value >= 0.5f) ? newConn1 : newConn2);
@@ -326,33 +328,25 @@ public class Network
                 int index = _rand.Next(nodes.Count - output - input) + input;
                 Remove(nodes[index]);
                 break;
+            case MUTATION_TYPE.MOD_ACTIVATION:
+                if (!Globals.ALLOW_OUTPUT_ACTIVATION_MUTATION && input + output == nodes.Count)
+                {
+                    Debug.LogWarning("No nodes available to mutate activation");
+                    break;
+                }
+
+                int mutateIndex = 0;
+                if (Globals.ALLOW_OUTPUT_ACTIVATION_MUTATION)
+                    mutateIndex = UnityEngine.Random.Range(input, nodes.Count);
+                else
+                    mutateIndex = _rand.Next(nodes.Count - output - input) + input;
+                nodes[mutateIndex].Mutate(MUTATION_TYPE.MOD_ACTIVATION);
+
+                break;
             case MUTATION_TYPE.ADD_CONN:
                 List<(Node, Node)> available = new List<(Node, Node)>();
 
                 Debug.Log("THIS BITCH MUTATED A CONNECTION");
-                /*for (int i=0; i < nodes.Count - output; i++)
-                {
-                    Node node1 = nodes[i];
-                    for(int j = input; j < nodes.Count; j++)
-                    {
-                        Node node2 = nodes[j];
-                        if (!node1.IsProjectingTo(node2))
-                            available.Add((node1, node2));
-                    }
-                }
-                (Node x, Node y) pair = available[_rand.Next(available.Count)];
-                
-                if (available.Count == 0)
-                {
-                    Debug.LogWarning("No More connections available");
-                    break;
-                }
-
-                
-                
-                
-                Connect(pair.x, pair.y);
-                break;*/
 
 
                 Node rand1 = nodes[_rand.Next(nodes.Count)];
@@ -380,7 +374,7 @@ public class Network
                 for(int i=0; i < connections.Count; i++)
                 {
                     Connection conn = connections[i];
-                    if (conn.From.connections.Out.Count > 1 && conn.To.connections.In.Count > 1 && nodes.IndexOf(conn.To) > nodes.IndexOf(conn.From))
+                    if (conn.From.connections.Out.Count > 0 && conn.To.connections.In.Count > 0 && nodes.IndexOf(conn.To) > nodes.IndexOf(conn.From))
                         possible.Add(conn);
                 }
 
@@ -732,7 +726,7 @@ public class Network
                 {
                     Node from = offspring.nodes[cData.from];
                     Node to = offspring.nodes[cData.to];
-                    Connection conn = offspring.Connect(from, to)[0];
+                    Connection conn = offspring.Connect(from, to, cData.weight)[0];
 
                     conn.weight = cData.weight;
 

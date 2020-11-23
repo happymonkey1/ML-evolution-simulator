@@ -753,7 +753,7 @@ public class Network
                 offspring.Mutate(MUTATION_TYPE.ADD_NODE);
 
             rand = UnityEngine.Random.value;
-            if (rand < .005)
+            if (rand < .05)
                 offspring.Mutate(MUTATION_TYPE.SUB_CONN);
         }
 

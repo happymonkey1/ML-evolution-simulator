@@ -16,6 +16,7 @@ public class Globals
     public const float BASE_GENE_MUTATION_CHANCE = 0.05f;
 
     public const bool ALLOW_OUTPUT_ACTIVATION_MUTATION = false;
+    public const bool GAUSSIAN_SPAWNING = true;
 }
 
 public class Mutations

@@ -26,14 +26,14 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 528040631333100056}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 528040633156736296}
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 31.688}
 --- !u!114 &528040631333100063
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -46,7 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08524364eccab924d832a3c0a4c1fb31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  neuronInput: 10
+  neuronInput: 12
   neuronOutput: 4
   biasNeuron: 1
   maxEnergy: 0
@@ -56,8 +56,8 @@ MonoBehaviour:
   currentEnergy: 0
   _currentSpeed: 0
   _currentTurningSpeed: 0
-  facingDirection: 0
   wantDirection: 0
+  facingDirection: 0
   currentSize: 0
   currentMaturity: 0
   maturationAge: 0
@@ -96,8 +96,8 @@ Rigidbody2D:
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
   m_Mass: 1
-  m_LinearDrag: 0
-  m_AngularDrag: 0.05
+  m_LinearDrag: 2
+  m_AngularDrag: 5
   m_GravityScale: 0
   m_Material: {fileID: 0}
   m_Interpolate: 0

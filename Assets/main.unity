@@ -166,8 +166,8 @@ MonoBehaviour:
   currentAgents: 0
   foods: []
   ticksPerFrame: 1
-  maxFood: 200
-  initialAgentPopulation: 30
+  maxFood: 2000
+  initialAgentPopulation: 50
   agentPrefab: {fileID: 528040631333100056, guid: 4b6e0ac782be7f6438b0297a14e43d92,
     type: 3}
   foodPrefab: {fileID: 5570171547210029085, guid: c189f7a4fa9ecd34da6c8fc36ef5954f,

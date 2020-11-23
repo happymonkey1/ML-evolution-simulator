@@ -14,6 +14,7 @@ public class Agent : MonoBehaviour
     private Transform _transform;
     private SpriteRenderer _sr;
     private Collider2D _col;
+    private Rigidbody2D _rb;
 
 
     public BaseGenes genes = new BaseGenes();
@@ -34,8 +35,8 @@ public class Agent : MonoBehaviour
     [SerializeField]
     private float _currentTurningSpeed;
 
-    public float facingDirection;
     public float wantDirection;
+    public float facingDirection;
     public float currentSize;
     
 
@@ -71,7 +72,7 @@ public class Agent : MonoBehaviour
         _velocity = new Vector2(0f, 0f);
         _sr = GetComponentInChildren<SpriteRenderer>();
         _col = GetComponent<Collider2D>();
-
+        _rb = GetComponent<Rigidbody2D>();
     }
 
     
@@ -108,34 +109,44 @@ public class Agent : MonoBehaviour
 
         _transform.localScale = new Vector3(currentSize, currentSize, 1f);
 
-        float x = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.x, GameManager.instance.worldBounds.width, false));
-        float y = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.y, GameManager.instance.worldBounds.height, false));
+        float x, y;
+        if (!Globals.GAUSSIAN_SPAWNING)
+        {
+            x = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.x, GameManager.instance.worldBounds.width, false));
+            y = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.y, GameManager.instance.worldBounds.height, false));
+        }
+        else
+        {
+            x = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.width / 8) + GameManager.instance.worldBounds.x + GameManager.instance.worldBounds.width / 2;
+            y = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.height / 8) + GameManager.instance.worldBounds.y + GameManager.instance.worldBounds.height / 2;
+        }
         _transform.position = new Vector3(x, y, 0);
 
         _sr.color = new Color(genes.baseColorR, genes.baseColorG, genes.baseColorB, 1f);
 
         facingDirection = wantDirection = (float)(new System.Random().NextDouble() * Mathf.PI * 2);
+        _transform.rotation = Quaternion.Euler(new Vector3(0f, 0f, facingDirection * (180/Mathf.PI)));
         isDead = false;
 
         _wantsToMate = true;
 
         Brain = Preset.EmptyRandom(neuronInput, new System.Random().Next(0, 3), neuronOutput, biasNeuron);
-        
+
     }
 
-    public (float, float) FindClosestAgent()
+    public (float, float, int) FindClosestAgent()
     {
-        if (GameManager.instance.foods.Count == 0) return (1000f, -1);
+        if (GameManager.instance.foods.Count == 0) return (1000f, -1, 0);
         float min = float.PositiveInfinity;
         float angle = 0;
-
+        int agentsNearby = 0;
         Collider2D[] foundColliders = Physics2D.OverlapCircleAll(_transform.position, genes.baseVision);
         foreach (Collider2D col in foundColliders)
         {
             if (col == _col) continue;
             if (col.gameObject.tag == "Agent")
             {
-                
+                agentsNearby++;
                 ColliderDistance2D dist = _col.Distance(col);
                 float dy = col.transform.position.y - _transform.position.y;
                 float dx = col.transform.position.x - _transform.position.x;
@@ -150,14 +161,15 @@ public class Agent : MonoBehaviour
         while (angle < 0)
             angle += Mathf.PI * 2;
 
-        return ((min <= genes.baseVision) ? min : 1000f, angle);
+        return ((min <= genes.baseVision) ? min : 1000f, angle, agentsNearby);
     }
 
-    public (float, float) FindClosestFood()
+    public (float, float, int) FindClosestFood()
     {
-        if (GameManager.instance.foods.Count == 0) return (1000f, -1);
+        if (GameManager.instance.foods.Count == 0) return (1000f, -1, 0);
         float min = float.PositiveInfinity;
         float angle = 0;
+        int foodsNearby = 0;
 
         Collider2D[] foundColliders = Physics2D.OverlapCircleAll(_transform.position, genes.baseVision);
         
@@ -165,6 +177,7 @@ public class Agent : MonoBehaviour
         {
             if (col.gameObject.tag == "Food")
             {
+                foodsNearby++;
                 ColliderDistance2D dist = _col.Distance(col);
                 float dy = col.transform.position.y - _transform.position.y;
                 float dx = col.transform.position.x - _transform.position.x;
@@ -180,7 +193,7 @@ public class Agent : MonoBehaviour
         while (angle < 0)
             angle += Mathf.PI * 2;
 
-        return ((min <= genes.baseVision) ? min : 1000f, angle);
+        return ((min <= genes.baseVision) ? min : 1000f, angle, foodsNearby);
     }
 
     void OnTriggerEnter2D(Collider2D collider)
@@ -305,26 +318,30 @@ public class Agent : MonoBehaviour
         health = (health < 0) ? 0 : health;
         _brainVision.Add(health);                                      //3
 
-        _brainVision.Add(facingDirection);                             //4
+        _brainVision.Add(_transform.rotation.z);                             //4
 
         //======================================
-        (float x, float y) closestFood = FindClosestFood();
+        (float x, float y, int z) closestFood = FindClosestFood();
         _brainVision.Add(closestFood.x);                               //5
 
         _brainVision.Add(closestFood.y);                               //6
         Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(closestFood.y) * ((closestFood.x < 1000f) ? closestFood.x : .5f), Mathf.Sin(closestFood.y) * ((closestFood.x < 1000f) ? closestFood.x : .5f)), Color.blue);
 
-        (float x, float y) closestAgent = FindClosestAgent();
+        (float x, float y, int z) closestAgent = FindClosestAgent();
         _brainVision.Add( closestAgent.x );                            //7
 
         _brainVision.Add(closestAgent.y);                              //8
         Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(closestAgent.y) * ((closestAgent.x < 1000f) ? closestAgent.x : .5f), Mathf.Sin(closestAgent.y) * ((closestAgent.x < 1000f) ? closestAgent.x : .5f)), Color.green);
+
+        _brainVision.Add(closestFood.z);                               //9
+
+        _brainVision.Add(closestAgent.z);                              //10
         //======================================
 
-        _brainVision.Add(age);                                         //9
+        _brainVision.Add(age);                                         //11
 
         _canMate = (currentMaturity >= 1.0) ? true : false;
-        _brainVision.Add(currentMaturity);                             //10
+        _brainVision.Add(currentMaturity);                             //12
 
         //Debug.Log($"inputs: {string.Join(" ", _brainVision)}");
 
@@ -354,34 +371,44 @@ public class Agent : MonoBehaviour
             }
         }
 
-        if (max < 0.6) return;
 
+        float speedRatio;
+        float turnRatio;
         switch (maxIndex)
         {
             case 0: //Forward
-                CurrentSpeed = MaxSpeed;
+                speedRatio = (float)((max - 0.5) / 0.5);
+                CurrentSpeed = MaxSpeed * speedRatio;
                 break;
             case 1: //DOWN
-                CurrentSpeed = -MaxSpeed;
+                speedRatio = -(float)((max - 0.5) / 0.5);
+                CurrentSpeed = MaxSpeed * speedRatio;
                 break;
             case 2: //RIGHT
-                wantDirection = facingDirection - CurrentTurningSpeed;
+                turnRatio = -(float)((max - 0.5) / 0.5);
+                wantDirection += genes.baseTurningSpeed * turnRatio;
                 break;
             case 3: //LEFT
-                wantDirection = facingDirection + CurrentTurningSpeed;
+                turnRatio = (float)((max - 0.5) / 0.5);
+                wantDirection += genes.baseTurningSpeed * turnRatio;
                 break;
-
         }
 
     }
 
     void Move()
     {
+        facingDirection = transform.rotation.eulerAngles.z * (Mathf.PI / 180f);
+
         currentSize = Mathf.Clamp(maxSize * age / maturationAge, GameManager.MIN_SIZE, maxSize);
         _transform.localScale = new Vector3(currentSize, currentSize, 1f);
 
-        _velocity = new Vector2(Mathf.Cos(facingDirection), Mathf.Sin(facingDirection)) * (CurrentSpeed * Time.deltaTime);
-        Vector3 final = _transform.position + new Vector3(_velocity.x, _velocity.y, 0);
+        Vector2 moveVel = new Vector2(Mathf.Cos(facingDirection), Mathf.Sin(facingDirection)) * (CurrentSpeed * Time.deltaTime);
+        if (_rb.velocity != moveVel) {
+            _rb.velocity = _rb.velocity + moveVel;
+        }
+
+        Vector3 final = _transform.position + new Vector3(_rb.velocity.x, _rb.velocity.y, 0);
 
 
         if (GameManager.IS_WORLD_WRAPPING)
@@ -394,12 +421,15 @@ public class Agent : MonoBehaviour
             final.x = (width + final.x) % width;
             final.y = (height + final.y) % height;   
         }
-        _transform.position = final;
+        //_transform.position = final;
+        
 
         if (facingDirection != wantDirection)
         {
             facingDirection = Mathf.Lerp(facingDirection, wantDirection, 0.6f * Time.deltaTime);
+            _transform.rotation = Quaternion.Euler(0.0f, 0.0f, facingDirection * (180 / Mathf.PI));
         }
+
     }
 
 
@@ -421,7 +451,7 @@ public class Agent : MonoBehaviour
 
         age += 1 * Time.deltaTime;
         currentMaturity = Mathf.Min(age / maturationAge, 1.0f);
-        if (currentMaturity <= 1.0f && (age - lastGestationAge) < genes.baseGestationPeriod)
+        if (currentMaturity < 1.0f || (age - lastGestationAge) < genes.baseGestationPeriod)
             _canMate = false;
         else
             _canMate = true;

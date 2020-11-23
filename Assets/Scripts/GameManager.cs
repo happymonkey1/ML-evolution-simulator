@@ -87,8 +87,8 @@ public class GameManager : MonoBehaviour
 
         for (int t = 0; t < ticksPerFrame; t++)
         {
-            k = Mathf.Exp((300 - agents.Count) / (100 * 5f));
-            maxFood = (int)(k * 100 * (300 / ((agents.Count > 0) ? agents.Count : 1)));
+            //k = Mathf.Exp((300 - agents.Count) / (100 * 5f));
+            //maxFood = (int)(k * 100 * (300 / ((agents.Count > 0) ? agents.Count : 1)));
             if (agents.Count < initialAgentPopulation)
             {
                 CreateAgent().Birth(objIDs++);
@@ -97,7 +97,9 @@ public class GameManager : MonoBehaviour
             if (foods.Count < maxFood)
                 CreateFood();
             else if (foods.Count > maxFood)
-                DestroyRandomFood();
+            {
+                //DestroyRandomFood();
+            }
 
 
             /*Parallel.For(0, agents.Count, i => {

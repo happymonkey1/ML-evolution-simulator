@@ -53,10 +53,17 @@ public class Food : MonoBehaviour
         else if (type == BioMassType.Plant)
             _spriteRenderer.color = Color.green;
 
-
-
-        float x = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.x, GameManager.instance.worldBounds.width, false));
-        float y = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.y, GameManager.instance.worldBounds.height, false));
+        float x, y;
+        if (!Globals.GAUSSIAN_SPAWNING)
+        {
+            x = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.x, GameManager.instance.worldBounds.width, false));
+            y = (NativeMethods.GetRandomFloat(GameManager.instance.worldBounds.y, GameManager.instance.worldBounds.height, false));
+        }
+        else
+        {
+            x = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.width / 8) + GameManager.instance.worldBounds.x + GameManager.instance.worldBounds.width / 2;
+            y = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.height / 8) + GameManager.instance.worldBounds.y + GameManager.instance.worldBounds.height / 2;
+        }
         _transform.position = new Vector3(x, y, 0);
 
         isDead = false;
@@ -75,12 +82,6 @@ public class Food : MonoBehaviour
     {
         if (currentBioMass <= 0)
             StartCoroutine(Respawn());
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
 
 }

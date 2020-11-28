@@ -39,7 +39,8 @@ public class Preset
     {
         Network network = new Network(input, output, bias, false);
 
-        if (UnityEngine.Random.value <= Globals.MUTATION_CHANCE)
+        //if (UnityEngine.Random.value <= Globals.MUTATION_CHANCE)
+        if (true)
         {
             bool mutatedOnce = false;
             while (!mutatedOnce)

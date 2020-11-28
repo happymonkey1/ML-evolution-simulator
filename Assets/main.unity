@@ -165,8 +165,12 @@ MonoBehaviour:
   agents: []
   currentAgents: 0
   foods: []
-  ticksPerFrame: 1
-  maxFood: 2000
+  ticksPerSecond: 12
+  timeScale: 1
+  showAgentVision: 1
+  maxFood: 500
+  biomassDistributionDensity: 0.35
+  agentDistributionDensity: 0.7
   initialAgentPopulation: 50
   agentPrefab: {fileID: 528040631333100056, guid: 4b6e0ac782be7f6438b0297a14e43d92,
     type: 3}

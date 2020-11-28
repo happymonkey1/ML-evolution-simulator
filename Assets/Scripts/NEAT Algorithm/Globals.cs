@@ -12,7 +12,7 @@ public class Globals
     public const int SELF_CONNECTIONS = 0;
     public const int GATES = 0;
 
-    public const float MUTATION_CHANCE = .3f;
+    public const float MUTATION_CHANCE = .85f;
     public const float BASE_GENE_MUTATION_CHANCE = 0.05f;
 
     public const bool ALLOW_OUTPUT_ACTIVATION_MUTATION = false;

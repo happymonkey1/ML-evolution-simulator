@@ -61,8 +61,8 @@ public class Food : MonoBehaviour
         }
         else
         {
-            x = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.width / 8) + GameManager.instance.worldBounds.x + GameManager.instance.worldBounds.width / 2;
-            y = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.height / 8) + GameManager.instance.worldBounds.y + GameManager.instance.worldBounds.height / 2;
+            x = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.width + GameManager.instance.worldBounds.x + GameManager.instance.worldBounds.width / 2) / 8 * (1f - GameManager.instance.biomassDistributionDensity);
+            y = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.height + GameManager.instance.worldBounds.y + GameManager.instance.worldBounds.height / 2) / 8 * (1f - GameManager.instance.biomassDistributionDensity);
         }
         _transform.position = new Vector3(x, y, 0);
 

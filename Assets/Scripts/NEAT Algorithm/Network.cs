@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
 
 public class Network 
@@ -22,7 +24,7 @@ public class Network
 
     double score = 0.0;
 
-    public Network(int i, int o, bool biased = false, bool fullConnect = true)
+    public Network(int i, int o, bool biased = false, bool fullConnect = true, bool isChild = false)
     {
         this.biased = biased;
         input = i;
@@ -35,7 +37,7 @@ public class Network
         selfConnections = new List<Connection>();
         dropout = 0.0;
 
-        if (biased)
+        if (biased && !isChild)
         {
             nodes.Add(new Node(Node.NodeType.INPUT));
             
@@ -47,7 +49,7 @@ public class Network
             nodes[j].index = j;
         }
 
-        if (biased)
+        if (biased && !isChild)
             input += 1;
         
 
@@ -114,6 +116,18 @@ public class Network
         }
 
         return output;
+    }
+
+    public struct FeedForwardJob : IJob
+    {
+        public Network brain;
+        public List<double> vision;
+        public NativeArray<double> result;
+
+        public void Execute()
+        {
+            result.CopyFrom(brain.FeedForward(vision).ToArray());
+        }
     }
 
     public List<double> FeedForward(List<double> inputs)
@@ -601,24 +615,14 @@ public class Network
         if (network1.input != network2.input || network1.output != network2.output)
             throw new Exception("Networks are not of the same size");
 
-        Network offspring = new Network(network1.input, network1.output, biased, false);
+        Network offspring = new Network(network1.input, network1.output, biased, false, true);
         offspring.connections = new List<Connection>();
         offspring.nodes = new List<Node>();
 
-        double score1 = network1.score;
-        double score2 = network2.score;
-
-        int size;
-        if (equal || score1 == score2)
-        {
-            int max = Mathf.Max(network1.nodes.Count, network2.nodes.Count);
-            int min = Mathf.Min(network1.nodes.Count, network2.nodes.Count);
-            size = Mathf.FloorToInt(UnityEngine.Random.value * (max - min + 1) + min);
-        }
-        else if (score1 > score2)
-            size = network1.nodes.Count;
-        else
-            size = network2.nodes.Count;
+        int max = Mathf.Max(network1.nodes.Count, network2.nodes.Count);
+        int min = Mathf.Min(network1.nodes.Count, network2.nodes.Count);
+        int size = Mathf.FloorToInt(UnityEngine.Random.value * (max - min + 1) + min);
+        
 
         int outputSize = network1.output;
 
@@ -666,12 +670,12 @@ public class Network
             newConnections1[Connection.InnovationID(data.from, data.to)] = data;
         }
 
-        for (int i = 0; i < network1.selfConnections.Count; i++)
+        /*for (int i = 0; i < network1.selfConnections.Count; i++)
         {
             Connection c = network1.selfConnections[i];
             ConnectionData data = new ConnectionData(c.weight, c.From.index, c.To.index, (c.Gater != null) ? c.Gater.index : -1);
             newConnections1[Connection.InnovationID(data.from, data.to)] = data;
-        }
+        }*/
 
         for (int i = 0; i < network2.connections.Count; i++)
         {
@@ -680,12 +684,12 @@ public class Network
             newConnections2[Connection.InnovationID(data.from, data.to)] = data;
         }
 
-        for (int i = 0; i < network2.selfConnections.Count; i++)
+        /*for (int i = 0; i < network2.selfConnections.Count; i++)
         {
             Connection c = network2.selfConnections[i];
             ConnectionData data = new ConnectionData(c.weight, c.From.index, c.To.index, (c.Gater != null) ? c.Gater.index : -1);
             newConnections2[Connection.InnovationID(data.from, data.to)] = data;
-        }
+        }*/
 
 
 
@@ -705,19 +709,19 @@ public class Network
 
                     newConnections2.Remove(keys1[i]);
                 }
-                else if (score1 >= score2 || equal)
+                else
                     connections.Add(newConnections1[keys1[i]]);
+                
             }
 
-            if (score2 >= score1 || equal)
+
+            for (int i = 0; i < keys2.Count; i++)
             {
-                for (int i = 0; i < keys2.Count; i++)
-                {
-                    ConnectionData conn;
-                    if (newConnections2.TryGetValue(keys2[i], out conn))
-                        connections.Add(newConnections2[keys2[i]]);
-                }
+                ConnectionData conn;
+                if (newConnections2.TryGetValue(keys2[i], out conn))
+                    connections.Add(newConnections2[keys2[i]]);
             }
+
 
             for (int i = 0; i < connections.Count; i++)
             {

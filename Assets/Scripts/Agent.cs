@@ -1,5 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
 
 public class Agent : MonoBehaviour
@@ -63,7 +66,7 @@ public class Agent : MonoBehaviour
     [SerializeField]
     public int ID { get; set; }
 
-    
+    private bool _mouseDown = false;
 
     // Start is called before the first frame update
     void Awake()
@@ -102,7 +105,7 @@ public class Agent : MonoBehaviour
         CurrentTurningSpeed = genes.baseTurningSpeed;
         currentSize = Mathf.Clamp(genes.baseSize * currentMaturity, GameManager.MIN_SIZE, maxSize);
         currentHealth = maxHealth;
-        currentEnergy = maxEnergy;
+        currentEnergy = maxEnergy * 0.35f;
 
         ID = id;
         GameManager.instance.agents.Add(this);
@@ -117,8 +120,8 @@ public class Agent : MonoBehaviour
         }
         else
         {
-            x = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.width / 8) + GameManager.instance.worldBounds.x + GameManager.instance.worldBounds.width / 2;
-            y = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.height / 8) + GameManager.instance.worldBounds.y + GameManager.instance.worldBounds.height / 2;
+            x = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.width + GameManager.instance.worldBounds.x + GameManager.instance.worldBounds.width / 2) / 8 * (1f-GameManager.instance.agentDistributionDensity);
+            y = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.height + GameManager.instance.worldBounds.y + GameManager.instance.worldBounds.height / 2) / 8 * (1f- GameManager.instance.agentDistributionDensity);
         }
         _transform.position = new Vector3(x, y, 0);
 
@@ -131,6 +134,8 @@ public class Agent : MonoBehaviour
         _wantsToMate = true;
 
         Brain = Preset.EmptyRandom(neuronInput, new System.Random().Next(0, 3), neuronOutput, biasNeuron);
+        _brainVision = new List<double>();
+        _brainDecisions = new List<double>();
 
     }
 
@@ -212,7 +217,7 @@ public class Agent : MonoBehaviour
         }
 
     }
-     void OnCollisionEnter2D(Collision2D collision)
+    void OnCollisionEnter2D(Collision2D collision)
     {
         if (collision.gameObject.tag == "Food")
         {
@@ -227,8 +232,13 @@ public class Agent : MonoBehaviour
             //if (angleBtwn - facingDirection <= Mathf.PI/4)
             Eat(collision.gameObject.GetComponent<Food>());
         }
-
+        else if (collision.gameObject.tag == "Agent") {
+            if (currentEnergy / maxEnergy > 0.8f)
+                SexualReproduction(collision.gameObject.GetComponent<Agent>());
+        }
     }
+
+
 
     private void Eat(Food f)
     {
@@ -243,23 +253,17 @@ public class Agent : MonoBehaviour
         if (currentEnergy > maxEnergy)
             Debug.LogWarning("FUCK THIS SHOULDNT APPEAR");
 
-
-        if (currentEnergy / maxEnergy > 0.8)
-            Reproduce();
-
         f.currentBioMass -= dinner;
         f.CheckDead();
     }
 
+
     private void Reproduce()
     {
-
         if (_wantsToMate && _canMate)
         {
 
-            int litter = Random.Range(1, Mathf.CeilToInt(genes.baseMaxLitterSize)+1);
-            if (litter == 0)
-                litter = 1;
+            int litter = Random.Range(1, Mathf.CeilToInt(genes.baseMaxLitterSize) + 1);
             Debug.Log($"Someone touched themselves and had {litter} kid(s)");
             float delay = 1f;
             float inBetween = 2f;
@@ -268,9 +272,34 @@ public class Agent : MonoBehaviour
 
             lastGestationAge = age + (delay + inBetween*(litterSize-1));
         }
+    }
 
-        
-        
+    private void SexualReproduction(Agent otherAgent)
+    {
+        if (_wantsToMate && _canMate && otherAgent._wantsToMate && otherAgent._canMate)
+        {
+            float minLitter = Mathf.Min(genes.baseMaxLitterSize, otherAgent.genes.baseMaxLitterSize);
+            int litter = Random.Range(1, Mathf.CeilToInt(minLitter) + 1);
+            Debug.Log($"Someone had seggs and had {litter} kid(s)");
+            float delay = 1f;
+            float inBetween = 2f;
+            for (int i = 0; i < litter; i++)
+                StartCoroutine(LaySexEgg(delay + inBetween * i, otherAgent.Brain, otherAgent.genes));
+
+            lastGestationAge = age + (delay + inBetween * (litter));
+
+            _canMate = false;
+            otherAgent._canMate = false;
+        }
+    }
+
+    IEnumerator LaySexEgg(float delay, Network otherBrain, BaseGenes otherGenes)
+    {
+        yield return new WaitForSeconds(delay);
+        Agent baby = GameManager.instance.CreateAgent();
+        baby.Birth(GameManager.instance.objIDs, genes.Mix(otherGenes, true));
+        baby.Brain = Brain.CrossOver(Brain, otherBrain, false);
+        baby.transform.position = transform.position;
     }
 
     IEnumerator LayEgg(float delay)
@@ -283,19 +312,33 @@ public class Agent : MonoBehaviour
     }
     
 
-    void Update()
-    {
-        
-    }
-
+    
     public void DoTick()
     {
         See();
 
         Think();
 
-        Move();
+        
+    }
 
+    public void DebugGismos()
+    {
+        if (_brainVision.Count == 0) return;
+
+        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(facingDirection) * genes.baseVision, Mathf.Sin(facingDirection) * genes.baseVision));
+        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(wantDirection) * genes.baseVision, Mathf.Sin(wantDirection) * genes.baseVision), Color.red);
+
+        (float x, float y) closestFood = ((float)_brainVision[5], (float)_brainVision[6]);
+        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(closestFood.y) * ((closestFood.x < 1000f) ? closestFood.x : .5f), Mathf.Sin(closestFood.y) * ((closestFood.x < 1000f) ? closestFood.x : .5f)), Color.blue);
+
+        (float x, float y) closestAgent = ((float)_brainVision[7], (float)_brainVision[8]);
+        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(closestAgent.y) * ((closestAgent.x < 1000f) ? closestAgent.x : .5f), Mathf.Sin(closestAgent.y) * ((closestAgent.x < 1000f) ? closestAgent.x : .5f)), Color.green);
+    }
+
+    public void DoUpdate()
+    {
+        Move();
         Metabolism();
     }
 
@@ -325,13 +368,12 @@ public class Agent : MonoBehaviour
         _brainVision.Add(closestFood.x);                               //5
 
         _brainVision.Add(closestFood.y);                               //6
-        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(closestFood.y) * ((closestFood.x < 1000f) ? closestFood.x : .5f), Mathf.Sin(closestFood.y) * ((closestFood.x < 1000f) ? closestFood.x : .5f)), Color.blue);
-
+        
         (float x, float y, int z) closestAgent = FindClosestAgent();
         _brainVision.Add( closestAgent.x );                            //7
 
         _brainVision.Add(closestAgent.y);                              //8
-        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(closestAgent.y) * ((closestAgent.x < 1000f) ? closestAgent.x : .5f), Mathf.Sin(closestAgent.y) * ((closestAgent.x < 1000f) ? closestAgent.x : .5f)), Color.green);
+        
 
         _brainVision.Add(closestFood.z);                               //9
 
@@ -340,16 +382,73 @@ public class Agent : MonoBehaviour
 
         _brainVision.Add(age);                                         //11
 
-        _canMate = (currentMaturity >= 1.0) ? true : false;
-        _brainVision.Add(currentMaturity);                             //12
+        double canMate = (_canMate) ? 1.0 : 0.0;
+        _brainVision.Add(canMate);                             //12
 
         //Debug.Log($"inputs: {string.Join(" ", _brainVision)}");
 
     }
 
 
-    // Update is called once per frame
+    void ThinkJob()
+    {
+        double max = 0;
+        int maxIndex = 0;
 
+        NativeArray<double> results = new NativeArray<double>();
+
+        Network.FeedForwardJob brainJob = new Network.FeedForwardJob();
+        brainJob.vision = _brainVision;
+        brainJob.brain = Brain;
+        brainJob.result = results;
+
+        JobHandle handle = brainJob.Schedule();
+        handle.Complete();
+
+        double[] temp = new double[Brain.output];
+        results.CopyTo(temp);
+        _brainDecisions = temp.ToList();
+        results.Dispose();
+
+
+        _brainDecisions = Brain.FeedForward(_brainVision);
+
+       
+
+        //Debug.Log($"outputs: {string.Join(" ", _brainDecisions)}");
+
+        for (int i = 0; i < _brainDecisions.Count; i++)
+        {
+            if (_brainDecisions[i] > max)
+            {
+                max = _brainDecisions[i];
+                maxIndex = i;
+            }
+        }
+
+
+        float speedRatio;
+        float turnRatio;
+        switch (maxIndex)
+        {
+            case 0: //Forward
+                speedRatio = (float)((max - 0.5) / 0.5);
+                CurrentSpeed = MaxSpeed * speedRatio;
+                break;
+            case 1: //DOWN
+                speedRatio = -(float)((max - 0.5) / 0.5);
+                CurrentSpeed = MaxSpeed * speedRatio;
+                break;
+            case 2: //RIGHT
+                turnRatio = -(float)((max - 0.5) / 0.5);
+                wantDirection += genes.baseTurningSpeed * turnRatio;
+                break;
+            case 3: //LEFT
+                turnRatio = (float)((max - 0.5) / 0.5);
+                wantDirection += genes.baseTurningSpeed * turnRatio;
+                break;
+        }
+    }
 
     void Think()
     {
@@ -357,8 +456,7 @@ public class Agent : MonoBehaviour
         int maxIndex = 0;
         _brainDecisions = Brain.FeedForward(_brainVision);
 
-        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(facingDirection) * genes.baseVision, Mathf.Sin(facingDirection) * genes.baseVision));
-        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(wantDirection) * genes.baseVision, Mathf.Sin(wantDirection) * genes.baseVision), Color.red);
+        
 
         //Debug.Log($"outputs: {string.Join(" ", _brainDecisions)}");
 
@@ -430,6 +528,13 @@ public class Agent : MonoBehaviour
             _transform.rotation = Quaternion.Euler(0.0f, 0.0f, facingDirection * (180 / Mathf.PI));
         }
 
+
+        if(_mouseDown)
+        {
+            Vector2 mousePos = Input.mousePosition;
+            Vector2 gamePos = Camera.main.ScreenToWorldPoint(mousePos);
+            transform.position = gamePos;
+        }
     }
 
 
@@ -449,7 +554,7 @@ public class Agent : MonoBehaviour
             isDead = true;
         
 
-        age += 1 * Time.deltaTime;
+        age += 1f * Time.deltaTime;
         currentMaturity = Mathf.Min(age / maturationAge, 1.0f);
         if (currentMaturity < 1.0f || (age - lastGestationAge) < genes.baseGestationPeriod)
             _canMate = false;
@@ -464,8 +569,16 @@ public class Agent : MonoBehaviour
             }
 
     }
-    
 
+    private void OnMouseDown()
+    {
+        _mouseDown = true;
+    }
+
+    private void OnMouseUp()
+    {
+        _mouseDown = false;
+    }
 }
 
 
@@ -508,6 +621,52 @@ public struct BaseGenes
         baseColorR = Mathf.Clamp(pattern.baseColorR + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(.01f, .1f, true) : 0f), 0f, 1f);
         baseColorG = Mathf.Clamp(pattern.baseColorG + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(.01f, .1f, true) : 0f), 0f, 1f);
         baseColorB = Mathf.Clamp(pattern.baseColorB + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(.01f, .1f, true) : 0f), 0f, 1f);
+    }
+
+    public BaseGenes Mix(BaseGenes otherPattern, bool mutate)
+    {
+        BaseGenes newGenes;
+        float energy = (UnityEngine.Random.value > 0.5) ? baseEnergy : otherPattern.baseEnergy;
+        newGenes.baseEnergy = energy + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(energy * .01f, energy * 0.1f, true) : 0f);
+        
+        float health = (UnityEngine.Random.value > 0.5) ? baseHealth : otherPattern.baseHealth;
+        newGenes.baseHealth = health + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(health * .01f, health * 0.1f, true) : 0f);
+        
+        float size = (UnityEngine.Random.value > 0.5) ? baseSize : otherPattern.baseSize;
+        newGenes.baseSize = size + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(size * .01f, size * 0.1f, true) : 0f);
+        
+        float maxSpeed = (UnityEngine.Random.value > 0.5) ? baseMaxSpeed : otherPattern.baseMaxSpeed;
+        newGenes.baseMaxSpeed = maxSpeed + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(maxSpeed * .01f, maxSpeed * 0.1f, true) : 0f);
+
+        float turningSpeed = (UnityEngine.Random.value > 0.5) ? baseTurningSpeed : otherPattern.baseTurningSpeed;
+        newGenes.baseTurningSpeed = turningSpeed + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(turningSpeed * .01f, turningSpeed * 0.1f, true) : 0f);
+        
+        float vision = (UnityEngine.Random.value > 0.5) ? baseVision : otherPattern.baseVision;
+        newGenes.baseVision = vision + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(vision * .01f, vision * 0.1f, true) : 0f);
+
+        float lifeExpectancy = (UnityEngine.Random.value > 0.5) ? baseLifeExpectancy : otherPattern.baseLifeExpectancy;
+        newGenes.baseLifeExpectancy = lifeExpectancy + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(lifeExpectancy * .01f, lifeExpectancy * 0.1f, true) : 0f);
+        
+        float maturationAge = (UnityEngine.Random.value > 0.5) ? baseMaturationAge : otherPattern.baseMaturationAge;
+        newGenes.baseMaturationAge = maturationAge + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(maturationAge * .01f, maturationAge * 0.1f, true) : 0f);
+        
+        float litterSize = (UnityEngine.Random.value > 0.5) ? baseMaxLitterSize : otherPattern.baseMaxLitterSize;
+        newGenes.baseMaxLitterSize = litterSize + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(litterSize * .01f, litterSize * 0.1f, true) : 0f);
+        
+        float gestationPeriod = (UnityEngine.Random.value > 0.5) ? baseGestationPeriod : otherPattern.baseGestationPeriod;
+        newGenes.baseGestationPeriod = gestationPeriod + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(gestationPeriod * .1f, gestationPeriod * 0.2f, true) : 0f);
+
+
+        float r = Random.Range(baseColorR, otherPattern.baseColorR);
+        newGenes.baseColorR = Mathf.Clamp(r + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(.01f, .1f, true) : 0f), 0f, 1f);
+
+        float g = Random.Range(baseColorG, otherPattern.baseColorG);
+        newGenes.baseColorG = Mathf.Clamp(g + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(.01f, .1f, true) : 0f), 0f, 1f);
+
+        float b = Random.Range(baseColorB, otherPattern.baseColorB);
+        newGenes.baseColorB = Mathf.Clamp(b + ((mutate && UnityEngine.Random.value < Globals.BASE_GENE_MUTATION_CHANCE) ? NativeMethods.GetRandomFloat(.01f, .1f, true) : 0f), 0f, 1f);
+
+        return newGenes;
     }
 
 

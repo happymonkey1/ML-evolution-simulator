@@ -19,9 +19,15 @@ public class GameManager : MonoBehaviour
     public int currentAgents = 0;
     public List<Food> foods = new List<Food>();
 
-    public int ticksPerFrame = 1;
+    public int ticksPerSecond = 12;
+    public int timeScale;
+    public bool showAgentVision;
 
     public int maxFood;
+    [Range(0.01f, 1f)]
+    public float biomassDistributionDensity;
+    [Range(0.01f, 1f)]
+    public float agentDistributionDensity;
     public int initialAgentPopulation;
     private int _spawnedAgents;
 
@@ -36,6 +42,9 @@ public class GameManager : MonoBehaviour
     public static bool IS_WORLD_WRAPPING = false;
 
     private float k;
+
+    private int _updateCounter = 1;
+    
     // Start is called before the first frame update
     void Awake()
     {
@@ -62,7 +71,6 @@ public class GameManager : MonoBehaviour
     public Agent CreateAgent()
     {
         return Instantiate(agentPrefab, new Vector3(0, 0, 0), Quaternion.identity).GetComponent<Agent>();
-        
     }
 
     void CreateFood()
@@ -80,39 +88,15 @@ public class GameManager : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
-        
         //maxFood = 300;
 
-        for (int t = 0; t < ticksPerFrame; t++)
+
+
+        ticksPerSecond = Mathf.Clamp(ticksPerSecond, 1, 60);
+        if (_updateCounter <= ticksPerSecond)
         {
-            //k = Mathf.Exp((300 - agents.Count) / (100 * 5f));
-            //maxFood = (int)(k * 100 * (300 / ((agents.Count > 0) ? agents.Count : 1)));
-            if (agents.Count < initialAgentPopulation)
-            {
-                CreateAgent().Birth(objIDs++);
-            }
-
-            if (foods.Count < maxFood)
-                CreateFood();
-            else if (foods.Count > maxFood)
-            {
-                //DestroyRandomFood();
-            }
-
-
-            /*Parallel.For(0, agents.Count, i => {
-                if (agents[i].isDead)
-                {
-                    GameObject g = agents[i].gameObject;
-                    agents.RemoveAt(i);
-                    Destroy(g);
-                }
-
-                agents[i].DoTick();
-            });*/
-
             for (int i = 0; i < agents.Count; i++)
             {
                 agents[i].DoTick();
@@ -125,7 +109,45 @@ public class GameManager : MonoBehaviour
             }
 
             currentAgents = agents.Count;
-
         }
+
+
+
+        if (_updateCounter * Time.fixedDeltaTime > 1)
+            _updateCounter = 1;
+        else
+            _updateCounter += 1;
+        
+    }
+
+    private void Update()
+    {
+
+        if (agents.Count < initialAgentPopulation) { 
+            Agent a = CreateAgent();
+            a.Birth(objIDs++);
+           // a.currentEnergy *= .35f;
+        }
+
+        //k = Mathf.Exp((300 - agents.Count) / (100 * 5f));
+        //maxFood = (int)(k * 100 * (300 / ((agents.Count > 0) ? agents.Count : 1)));
+        if (foods.Count < maxFood)
+            CreateFood();
+        else if (foods.Count > maxFood)
+        {
+            //DestroyRandomFood();
+        }
+
+
+        for (int t = 0; t < timeScale; t++)
+        {
+            for (int i = 0; i < agents.Count; i++)
+            {
+                agents[i].DoUpdate();
+                if (showAgentVision)
+                    agents[i].DebugGismos();
+            }
+        }
+
     }
 }

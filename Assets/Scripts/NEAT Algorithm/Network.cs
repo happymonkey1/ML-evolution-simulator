@@ -304,7 +304,7 @@ public class Network
         {
             case MUTATION_TYPE.ADD_NODE:
                 if (connections.Count == 0) break;
-                Connection c = connections[_rand.Next(connections.Count)];
+                Connection c = connections[UnityEngine.Random.Range(0, nodes.Count)];
                 Node gater = c.Gater;
                 double oldWeight = c.weight;
                 Disconnect(c.From, c.To);
@@ -323,7 +323,7 @@ public class Network
                 int minBound = Math.Min(toIndex, nodes.Count - output);
                 nodes.Insert(minBound, node);
 
-                Connection newConn1 = Connect(c.From, node)[0];
+                Connection newConn1 = Connect(c.From, node, oldWeight)[0];
                 Connection newConn2 = Connect(node, c.To, oldWeight)[0];
 
                 if (gater != null)
@@ -362,13 +362,14 @@ public class Network
 
                 Debug.Log("THIS BITCH MUTATED A CONNECTION");
 
+                
+                Node rand1 = nodes[UnityEngine.Random.Range(0, nodes.Count)];
+                Node rand2 = nodes[UnityEngine.Random.Range(0, nodes.Count)];
 
-                Node rand1 = nodes[_rand.Next(nodes.Count)];
-                Node rand2 = nodes[_rand.Next(nodes.Count)];
                 while(!CheckIfNodesCanBeConnected(rand1, rand2))
                 {
-                    rand1 = nodes[_rand.Next(nodes.Count)];
-                    rand2 = nodes[_rand.Next(nodes.Count)];
+                    rand1 = nodes[UnityEngine.Random.Range(0, nodes.Count)];
+                    rand2 = nodes[UnityEngine.Random.Range(0, nodes.Count)];
                 }
 
                 if(rand1.index > rand2.index)
@@ -745,20 +746,24 @@ public class Network
         if (UnityEngine.Random.value <= Globals.MUTATION_CHANCE)
         {
             float rand = UnityEngine.Random.value;
-            if (rand < .8)
+            if (rand < .8f)
                 offspring.Mutate(MUTATION_TYPE.MOD_WEIGHT);
 
             rand = UnityEngine.Random.value;
-            if (rand < .05)
+            if (rand < .05f)
                 offspring.Mutate(MUTATION_TYPE.ADD_CONN);
 
             rand = UnityEngine.Random.value;
-            if (rand < .01)
+            if (rand < .01f)
                 offspring.Mutate(MUTATION_TYPE.ADD_NODE);
 
             rand = UnityEngine.Random.value;
-            if (rand < .05)
+            if (rand < .05f)
                 offspring.Mutate(MUTATION_TYPE.SUB_CONN);
+
+            rand = UnityEngine.Random.value;
+            if (rand < .05f)
+                offspring.Mutate(MUTATION_TYPE.MOD_BIAS);
         }
 
         return offspring;

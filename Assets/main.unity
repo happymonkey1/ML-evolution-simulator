@@ -155,7 +155,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   worldWidth: 240
-  worldHeight: 140
+  worldHeight: 120
   worldBounds:
     serializedVersion: 2
     x: 0

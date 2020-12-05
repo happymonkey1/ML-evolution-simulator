@@ -327,7 +327,7 @@ public class Agent : MonoBehaviour
         if (_brainVision.Count == 0) return;
 
         Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(facingDirection) * genes.baseVision, Mathf.Sin(facingDirection) * genes.baseVision));
-        Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(wantDirection) * genes.baseVision, Mathf.Sin(wantDirection) * genes.baseVision), Color.red);
+        //Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(wantDirection) * genes.baseVision, Mathf.Sin(wantDirection) * genes.baseVision), Color.red);
 
         (float x, float y) closestFood = ((float)_brainVision[5], (float)_brainVision[6]);
         Debug.DrawLine(_transform.position, _transform.position + new Vector3(Mathf.Cos(closestFood.y) * ((closestFood.x < 1000f) ? closestFood.x : .5f), Mathf.Sin(closestFood.y) * ((closestFood.x < 1000f) ? closestFood.x : .5f)), Color.blue);
@@ -441,11 +441,11 @@ public class Agent : MonoBehaviour
                 break;
             case 2: //RIGHT
                 turnRatio = -(float)((max - 0.5) / 0.5);
-                wantDirection += genes.baseTurningSpeed * turnRatio;
+                facingDirection += genes.baseTurningSpeed * turnRatio;
                 break;
             case 3: //LEFT
                 turnRatio = (float)((max - 0.5) / 0.5);
-                wantDirection += genes.baseTurningSpeed * turnRatio;
+                facingDirection += genes.baseTurningSpeed * turnRatio;
                 break;
         }
     }
@@ -501,32 +501,32 @@ public class Agent : MonoBehaviour
         currentSize = Mathf.Clamp(maxSize * age / maturationAge, GameManager.MIN_SIZE, maxSize);
         _transform.localScale = new Vector3(currentSize, currentSize, 1f);
 
-        Vector2 moveVel = new Vector2(Mathf.Cos(facingDirection), Mathf.Sin(facingDirection)) * (CurrentSpeed * Time.deltaTime);
+        Vector2 moveVel = new Vector2(Mathf.Cos(facingDirection), Mathf.Sin(facingDirection)) * (CurrentSpeed * Time.fixedDeltaTime);
         if (_rb.velocity != moveVel) {
-            _rb.velocity = _rb.velocity + moveVel;
+            _rb.velocity = moveVel;
         }
 
-        Vector3 final = _transform.position + new Vector3(_rb.velocity.x, _rb.velocity.y, 0);
+        Vector3 final = _transform.position + new Vector3(_rb.velocity.x * Time.fixedDeltaTime, _rb.velocity.y * Time.fixedDeltaTime, 0);
 
 
         if (GameManager.IS_WORLD_WRAPPING)
         {
             float width = GameManager.instance.worldBounds.width;
             float height = GameManager.instance.worldBounds.height;
-            final.x = final.x % width;
-            final.y = final.y % height;
+            /*final.x = final.x % width;
+            final.y = final.y % height;*/
 
             final.x = (width + final.x) % width;
-            final.y = (height + final.y) % height;   
+            final.y = (height + final.y) % height;  
         }
         //_transform.position = final;
         
 
-        if (facingDirection != wantDirection)
+        /*if (facingDirection != wantDirection)
         {
             facingDirection = Mathf.Lerp(facingDirection, wantDirection, 0.6f * Time.deltaTime);
             _transform.rotation = Quaternion.Euler(0.0f, 0.0f, facingDirection * (180 / Mathf.PI));
-        }
+        }*/
 
 
         if(_mouseDown)

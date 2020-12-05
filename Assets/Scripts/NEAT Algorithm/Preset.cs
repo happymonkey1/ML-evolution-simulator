@@ -65,6 +65,13 @@ public class Preset
                     network.Mutate(MUTATION_TYPE.ADD_NODE);
                     mutatedOnce = true;
                 }
+
+                rand = UnityEngine.Random.value;
+                if (rand < .05f)
+                {
+                    network.Mutate(MUTATION_TYPE.MOD_BIAS);
+                    mutatedOnce = true;
+                }
             }
         }
 

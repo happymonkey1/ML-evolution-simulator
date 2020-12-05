@@ -51,7 +51,7 @@ public class Node
 
     public void Init()
     {
-        bias = (type == NodeType.INPUT) ? 0 : 0;//new Random().NextDouble() * 0.2 - 0.1;
+        bias = (type == NodeType.INPUT) ? 0 : UnityEngine.Random.Range(-1f, 1f);
         activation = state = old = 0.0;
 
         
@@ -174,7 +174,7 @@ public class Node
         for (int i=0; i < connections.Out.Count; i++)
         {
             Connection c = connections.Out[i];
-            c.To.state += c.weight * activation * c.gain;
+            c.To.state += c.weight * activation * c.gain + bias;
         }
 
         for (int i = 0; i < connections.Gated.Count; i++)
@@ -378,6 +378,18 @@ public void Propogate(bool update, double target, double? rate = null, double? m
                 while (s == this.squash)
                     s = ACTIVATION.POSSIBLE[UnityEngine.Random.Range(0, ACTIVATION.POSSIBLE.Count)];
                 squash = s;
+                break;
+            case MUTATION_TYPE.MOD_BIAS:
+                if (UnityEngine.Random.value < 0.1f)
+                    bias = UnityEngine.Random.Range(-1f, 1f);
+                else
+                {
+                    bias += NativeMethods.RandomGaussian() / 50;
+                    if (bias > 1f)
+                        bias = 1f;
+                    else if (bias < -1f)
+                        bias = -1f;
+                }
                 break;
             default:
                 throw new MissingMethodException("IM LAZY");

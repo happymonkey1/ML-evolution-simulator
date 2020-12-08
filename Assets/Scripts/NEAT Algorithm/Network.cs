@@ -304,7 +304,7 @@ public class Network
         {
             case MUTATION_TYPE.ADD_NODE:
                 if (connections.Count == 0) break;
-                Connection c = connections[UnityEngine.Random.Range(0, nodes.Count)];
+                Connection c = connections[UnityEngine.Random.Range(0, connections.Count)];
                 Node gater = c.Gater;
                 double oldWeight = c.weight;
                 Disconnect(c.From, c.To);

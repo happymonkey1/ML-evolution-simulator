@@ -61,8 +61,20 @@ public class Food : MonoBehaviour
         }
         else
         {
-            x = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.width + GameManager.instance.worldBounds.x + GameManager.instance.worldBounds.width / 2) / 8 * (1f - GameManager.instance.biomassDistributionDensity);
-            y = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.height + GameManager.instance.worldBounds.y + GameManager.instance.worldBounds.height / 2) / 8 * (1f - GameManager.instance.biomassDistributionDensity);
+            x = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.width/4) * (1f - GameManager.instance.biomassDistributionDensity) + GameManager.instance.worldBounds.x + GameManager.instance.worldBounds.width/2;
+            y = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.height/4) * (1f - GameManager.instance.biomassDistributionDensity) + GameManager.instance.worldBounds.y + GameManager.instance.worldBounds.height / 2;
+            if (GameManager.IS_WORLD_WRAPPING)
+            {
+                Vector3 final = _transform.position;
+                float width = GameManager.instance.worldBounds.width;
+                float height = GameManager.instance.worldBounds.height;
+                final.x = final.x % (width);
+                final.y = final.y % (height);
+
+                final.x = (width + final.x) % width;
+                final.y = (height + final.y) % height;
+                _transform.position = final;
+            }
         }
         _transform.position = new Vector3(x, y, 0);
 

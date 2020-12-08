@@ -39,11 +39,12 @@ public class GameManager : MonoBehaviour
     public static float MIN_SIZE = 0.4f;
     public static float MAX_SIZE = 1.25f;
 
-    public static bool IS_WORLD_WRAPPING = false;
+    public static bool IS_WORLD_WRAPPING = true;
 
     private float k;
 
-    private int _updateCounter = 1;
+    private float _updateCounter = 1;
+    private float _nextTick = 0.0f;
     
     // Start is called before the first frame update
     void Awake()
@@ -90,33 +91,37 @@ public class GameManager : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
-        //maxFood = 300;
-
-
-
-        ticksPerSecond = Mathf.Clamp(ticksPerSecond, 1, 60);
-        if (_updateCounter <= ticksPerSecond)
+        for (int t = 0; t < timeScale; t++)
         {
-            for (int i = 0; i < agents.Count; i++)
+            ticksPerSecond = Mathf.Clamp(ticksPerSecond, 1, 60);
+            //maxFood = 300;
+            if (_nextTick == 0.0f)
+                _nextTick = (60 / ticksPerSecond) * Time.fixedDeltaTime;
+
+
+
+
+            if (_updateCounter >= _nextTick)
             {
-                agents[i].DoTick();
-                if (agents[i].isDead)
+                for (int i = 0; i < agents.Count; i++)
                 {
-                    GameObject g = agents[i].gameObject;
-                    agents.RemoveAt(i);
-                    Destroy(g);
+                    agents[i].DoTick();
+                    if (agents[i].isDead)
+                    {
+                        GameObject g = agents[i].gameObject;
+                        agents.RemoveAt(i);
+                        Destroy(g);
+                    }
                 }
+
+                currentAgents = agents.Count;
+
+                _updateCounter = 0f;
+                _nextTick = 0.0f;
             }
-
-            currentAgents = agents.Count;
+            else
+                _updateCounter += Time.fixedDeltaTime;
         }
-
-
-
-        if (_updateCounter * Time.fixedDeltaTime > 1)
-            _updateCounter = 1;
-        else
-            _updateCounter += 1;
         
     }
 
@@ -144,6 +149,7 @@ public class GameManager : MonoBehaviour
             for (int i = 0; i < agents.Count; i++)
             {
                 agents[i].DoUpdate();
+                
                 if (showAgentVision)
                     agents[i].DebugGismos();
             }

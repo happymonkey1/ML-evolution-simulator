@@ -49,6 +49,8 @@ public class Agent : MonoBehaviour
     public float lifeExpectancy;
     public float litterSize;
     public float lastGestationAge;
+    public bool internalClock;
+    private float _nextClockChange;
 
     //BEHAVIOR 
     public bool isDead = false;
@@ -99,6 +101,8 @@ public class Agent : MonoBehaviour
         litterSize = genes.baseMaxLitterSize;
         age = 0f;
         lastGestationAge = 0f;
+        internalClock = false;
+        _nextClockChange = 0f;
 
         currentMaturity = age / maturationAge;
         CurrentSpeed = 0f;
@@ -120,8 +124,8 @@ public class Agent : MonoBehaviour
         }
         else
         {
-            x = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.width + GameManager.instance.worldBounds.x + GameManager.instance.worldBounds.width / 2) / 8 * (1f-GameManager.instance.agentDistributionDensity);
-            y = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.height + GameManager.instance.worldBounds.y + GameManager.instance.worldBounds.height / 2) / 8 * (1f- GameManager.instance.agentDistributionDensity);
+            x = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.width / 2) * (1f - GameManager.instance.agentDistributionDensity) + GameManager.instance.worldBounds.x + GameManager.instance.worldBounds.width / 2;
+            y = (float)(NativeMethods.RandomGaussian() * GameManager.instance.worldBounds.height / 2) * (1f - GameManager.instance.agentDistributionDensity) + GameManager.instance.worldBounds.y + GameManager.instance.worldBounds.height / 2;
         }
         _transform.position = new Vector3(x, y, 0);
 
@@ -319,7 +323,13 @@ public class Agent : MonoBehaviour
 
         Think();
 
-        
+        if (_nextClockChange > 1 / Time.fixedDeltaTime)
+        {
+            internalClock = !internalClock;
+            _nextClockChange = 0;
+        }
+        else
+            _nextClockChange += Time.fixedDeltaTime;
     }
 
     public void DebugGismos()
@@ -349,7 +359,7 @@ public class Agent : MonoBehaviour
         if(biasNeuron)
             _brainVision.Add(1.0);                                     //0
 
-        double hunger = (maxEnergy - currentEnergy);
+        double hunger = 1- (maxEnergy - currentEnergy) / maxEnergy;
         hunger = (hunger < 0) ? 0 : hunger;
         _brainVision.Add(hunger);                                      //1
 
@@ -383,14 +393,18 @@ public class Agent : MonoBehaviour
         _brainVision.Add(age);                                         //11
 
         double canMate = (_canMate) ? 1.0 : 0.0;
-        _brainVision.Add(canMate);                             //12
+        _brainVision.Add(canMate);                                     //12
 
+        double clock = (internalClock) ? 1.0 : 0.0;                    //13
+        _brainVision.Add(clock);
+        
+        
         //Debug.Log($"inputs: {string.Join(" ", _brainVision)}");
 
     }
 
 
-    void ThinkJob()
+    /*void ThinkJob()
     {
         double max = 0;
         int maxIndex = 0;
@@ -448,11 +462,13 @@ public class Agent : MonoBehaviour
                 facingDirection += genes.baseTurningSpeed * turnRatio;
                 break;
         }
-    }
+    }*/
 
     void Think()
     {
-        double max = 0;
+
+        double minThreshold = 0.65;
+        double max = minThreshold;
         int maxIndex = 0;
         _brainDecisions = Brain.FeedForward(_brainVision);
 
@@ -472,22 +488,24 @@ public class Agent : MonoBehaviour
 
         float speedRatio;
         float turnRatio;
+        wantDirection = transform.rotation.eulerAngles.z * (Mathf.PI / 180f);
+        
         switch (maxIndex)
         {
             case 0: //Forward
-                speedRatio = (float)((max - 0.5) / 0.5);
+                speedRatio = (float)((max - minThreshold) / (1 - minThreshold));
                 CurrentSpeed = MaxSpeed * speedRatio;
                 break;
             case 1: //DOWN
-                speedRatio = -(float)((max - 0.5) / 0.5);
+                speedRatio = -(float)((max - minThreshold) / (1 - minThreshold));
                 CurrentSpeed = MaxSpeed * speedRatio;
                 break;
             case 2: //RIGHT
-                turnRatio = -(float)((max - 0.5) / 0.5);
+                turnRatio = -(float)((max - minThreshold) / (1 - minThreshold));
                 wantDirection += genes.baseTurningSpeed * turnRatio;
                 break;
             case 3: //LEFT
-                turnRatio = (float)((max - 0.5) / 0.5);
+                turnRatio = (float)((max - minThreshold) / (1 - minThreshold));
                 wantDirection += genes.baseTurningSpeed * turnRatio;
                 break;
         }
@@ -501,35 +519,36 @@ public class Agent : MonoBehaviour
         currentSize = Mathf.Clamp(maxSize * age / maturationAge, GameManager.MIN_SIZE, maxSize);
         _transform.localScale = new Vector3(currentSize, currentSize, 1f);
 
-        Vector2 moveVel = new Vector2(Mathf.Cos(facingDirection), Mathf.Sin(facingDirection)) * (CurrentSpeed * Time.fixedDeltaTime);
+        Vector2 moveVel = new Vector2(Mathf.Cos(facingDirection), Mathf.Sin(facingDirection)) * (CurrentSpeed * Time.deltaTime);
         if (_rb.velocity != moveVel) {
-            _rb.velocity = moveVel;
+            _rb.velocity += moveVel;
+            _rb.velocity = Vector2.ClampMagnitude(_rb.velocity, genes.baseMaxSpeed);
         }
 
-        Vector3 final = _transform.position + new Vector3(_rb.velocity.x * Time.fixedDeltaTime, _rb.velocity.y * Time.fixedDeltaTime, 0);
+        
 
 
         if (GameManager.IS_WORLD_WRAPPING)
         {
+            Vector3 final = _transform.position;
             float width = GameManager.instance.worldBounds.width;
             float height = GameManager.instance.worldBounds.height;
-            /*final.x = final.x % width;
-            final.y = final.y % height;*/
+            final.x = final.x % (width);
+            final.y = final.y % (height);
 
             final.x = (width + final.x) % width;
-            final.y = (height + final.y) % height;  
+            final.y = (height + final.y) % height;
+            _transform.position = final;
         }
-        //_transform.position = final;
         
 
-        /*if (facingDirection != wantDirection)
-        {
-            facingDirection = Mathf.Lerp(facingDirection, wantDirection, 0.6f * Time.deltaTime);
-            _transform.rotation = Quaternion.Euler(0.0f, 0.0f, facingDirection * (180 / Mathf.PI));
-        }*/
 
+        if (facingDirection != wantDirection)
+            facingDirection = wantDirection;
+        
+        _transform.rotation = Quaternion.Euler(0.0f, 0.0f, facingDirection * (180 / Mathf.PI));
 
-        if(_mouseDown)
+        if (_mouseDown)
         {
             Vector2 mousePos = Input.mousePosition;
             Vector2 gamePos = Camera.main.ScreenToWorldPoint(mousePos);
@@ -540,8 +559,8 @@ public class Agent : MonoBehaviour
 
     void Metabolism()
     {
-        float moveCost = (NativeMethods.PowOneOverE(Mathf.Abs(_velocity.magnitude)));
-        float sizeCost = 2 * currentSize;
+        float moveCost = (NativeMethods.PowOneOverE(Mathf.Abs(CurrentSpeed), 2));
+        float sizeCost = (NativeMethods.PowOneOverE(currentSize, 2));
 
 
         float totalEnergyCost = moveCost + sizeCost;
@@ -676,7 +695,7 @@ public struct BaseGenes
         baseSize = NativeMethods.GetRandomFloat(.9f, 1.1f);
         baseSize = Mathf.Clamp(baseSize, GameManager.MIN_SIZE, GameManager.MAX_SIZE);
         //baseHealth = 100;
-        baseMaxSpeed = 2.1f;
+        baseMaxSpeed = Random.Range(2f, 3f);
         baseTurningSpeed = UnityEngine.Random.Range(Mathf.PI / 8, Mathf.PI / 4);
         baseVision = 10f;
 

@@ -43,34 +43,44 @@ public class Preset
         if (true)
         {
             bool mutatedOnce = false;
-            while (!mutatedOnce)
+            if (network.connections.Count == 0)
             {
                 float rand = UnityEngine.Random.value;
-                if (rand < .8)
-                {
-                    network.Mutate(MUTATION_TYPE.MOD_WEIGHT);
-                    mutatedOnce = true;
-                }
-
-                rand = UnityEngine.Random.value;
-                if (rand < .05)
-                {
+                if (rand < .3)
                     network.Mutate(MUTATION_TYPE.ADD_CONN);
-                    mutatedOnce = true;
-                }
-
-                rand = UnityEngine.Random.value;
-                if (rand < .01)
+                
+            }
+            else
+            {
+                while (!mutatedOnce)
                 {
-                    network.Mutate(MUTATION_TYPE.ADD_NODE);
-                    mutatedOnce = true;
-                }
+                    float rand = UnityEngine.Random.value;
+                    if (rand < .8)
+                    {
+                        network.Mutate(MUTATION_TYPE.MOD_WEIGHT);
+                        mutatedOnce = true;
+                    }
 
-                rand = UnityEngine.Random.value;
-                if (rand < .05f)
-                {
-                    network.Mutate(MUTATION_TYPE.MOD_BIAS);
-                    mutatedOnce = true;
+                    rand = UnityEngine.Random.value;
+                    if (rand < .15)
+                    {
+                        network.Mutate(MUTATION_TYPE.ADD_CONN);
+                        mutatedOnce = true;
+                    }
+
+                    rand = UnityEngine.Random.value;
+                    if (rand < .01)
+                    {
+                        network.Mutate(MUTATION_TYPE.ADD_NODE);
+                        mutatedOnce = true;
+                    }
+
+                    rand = UnityEngine.Random.value;
+                    if (rand < .05f)
+                    {
+                        network.Mutate(MUTATION_TYPE.MOD_BIAS);
+                        mutatedOnce = true;
+                    }
                 }
             }
         }

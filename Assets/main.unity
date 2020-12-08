@@ -154,8 +154,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 99d5ffd3d96bce3438fe7ba4d3cbc9cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  worldWidth: 240
-  worldHeight: 120
+  worldWidth: 60
+  worldHeight: 40
   worldBounds:
     serializedVersion: 2
     x: 0
@@ -168,7 +168,7 @@ MonoBehaviour:
   ticksPerSecond: 12
   timeScale: 1
   showAgentVision: 1
-  maxFood: 500
+  maxFood: 550
   biomassDistributionDensity: 0.35
   agentDistributionDensity: 0.7
   initialAgentPopulation: 50

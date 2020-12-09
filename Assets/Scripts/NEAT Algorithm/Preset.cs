@@ -45,9 +45,9 @@ public class Preset
             bool mutatedOnce = false;
             if (network.connections.Count == 0)
             {
-                float rand = UnityEngine.Random.value;
-                if (rand < .3)
-                    network.Mutate(MUTATION_TYPE.ADD_CONN);
+                /*float rand = UnityEngine.Random.value;
+                if (rand < .3)*/
+                network.Mutate(MUTATION_TYPE.ADD_CONN);
                 
             }
             else

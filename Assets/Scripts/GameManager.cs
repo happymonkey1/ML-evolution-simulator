@@ -57,6 +57,7 @@ public class GameManager : MonoBehaviour
         if (instance == null)
             instance = this;
 
+        Camera.main.transform.position = new Vector3(worldWidth / 2, worldHeight / 2, Camera.main.transform.position.z);
 
         worldBounds = new Rect(0, 0, worldWidth, worldHeight);
 
